@@ -113,6 +113,30 @@
   .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:.25s;max-width:90%;text-align:center}
   .toast.show{opacity:1}
   .empty{text-align:center;color:var(--muted);padding:40px 20px}
+  /* ---- Agenda / calendario reproductivo ---- */
+  .ag-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+  .ag-sum{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 13px;text-align:center;
+    box-shadow:var(--shadow)}
+  .ag-sum .n{font-size:23px;font-weight:800;line-height:1.1}
+  .ag-sum .l{font-size:11.5px;color:var(--muted);margin-top:3px;font-weight:600}
+  .ag-sum.r .n{color:#a2472f} .ag-sum.y .n{color:#a3611f} .ag-sum.g .n{color:var(--brand)}
+  .ag-mes{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:20px 4px 9px}
+  .ag-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;box-shadow:var(--shadow)}
+  .ag-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+  .ag-row:last-child{border-bottom:none}
+  .ag-row:active{background:var(--soft)}
+  .ag-day{width:46px;flex-shrink:0;text-align:center;border-radius:11px;padding:5px 0;background:var(--soft)}
+  .ag-day .d{font-size:17px;font-weight:800;color:var(--brand);line-height:1.1}
+  .ag-day .m{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase}
+  .ag-row.r .ag-day{background:#f6e5e0} .ag-row.r .ag-day .d{color:#a2472f}
+  .ag-row.y .ag-day{background:#fbecd9} .ag-row.y .ag-day .d{color:#a3611f}
+  .ag-main{flex:1;min-width:0}
+  .ag-main .t{font-weight:700;font-size:14.5px}
+  .ag-main .s{color:var(--muted);font-size:12.5px;margin-top:1px}
+  .ag-when{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;
+    background:var(--soft);color:var(--brand)}
+  .ag-when.r{background:#f6e5e0;color:#a2472f} .ag-when.y{background:#fbecd9;color:#a3611f}
   .spinner{width:30px;height:30px;border:3px solid var(--soft);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:36px auto}
   @keyframes spin{to{transform:rotate(360deg)}}
   .back{background:none;border:none;color:var(--brand);font-weight:600;font-size:15px;padding:6px 0;cursor:pointer;display:flex;align-items:center;gap:4px}
@@ -226,6 +250,8 @@
           <div class="card" id="dash-comp" style="padding:6px 0"></div>
           <div class="section-title">Por estado reproductivo</div>
           <div class="card" id="dash-estados" style="padding:6px 0"></div>
+          <div class="section-title">Próximas tareas</div>
+          <div class="card" id="dash-agenda" style="overflow:hidden"></div>
           <div class="section-title">Alertas</div>
           <div id="dash-alertas"></div>
         </div>
@@ -282,7 +308,7 @@
         <div class="section-title">Acerca de</div>
         <div class="card" style="padding:14px">
           <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
-          <div class="kv"><span class="k">Versión</span><span class="v">1.5 · Reportes</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">1.7 · Agenda</span></div>
           <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
         </div>
         <p class="field-hint" style="margin-top:14px">Instala la app: en el navegador toca “Añadir a pantalla de inicio” (Chrome/Safari).</p>
@@ -293,6 +319,19 @@
           &nbsp;·&nbsp;
           <a href="index.html" style="color:var(--brand);font-weight:600">Página de inicio</a>
         </p>
+      </div>
+    </section>
+
+    <!-- AGENDA: calendario reproductivo con tareas proyectadas -->
+    <section id="view-agenda" class="view hidden">
+      <div class="topbar"><div><h1>Agenda</h1><div class="sub" id="agenda-sub">Calendario reproductivo</div></div></div>
+      <div class="content">
+        <div id="agenda-banner" class="banner hidden">Aún no hay eventos reproductivos registrados. Anota un servicio, una palpación o un parto en <b>Registrar</b> y la agenda se arma sola.</div>
+        <div class="ag-summary" id="agenda-resumen"></div>
+        <div class="chips" id="agenda-chips"></div>
+        <div id="agenda-lista"></div>
+        <p class="field-hint" style="margin:18px 4px 0">Las fechas son estimadas a partir de los eventos que registras
+          (gestación de 283 días). Confírmalas siempre con tu veterinario.</p>
       </div>
     </section>
 
@@ -410,6 +449,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Animales</button>
       <button data-nav="registrar" onclick="show('registrar')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Registrar</button>
+      <button data-nav="agenda" onclick="show('agenda')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>Agenda</button>
       <button data-nav="finca" onclick="show('finca')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg>Finca</button>
       <button id="nav-fincas" data-nav="admin" style="display:none" onclick="show('admin')">
@@ -558,9 +599,12 @@ async function loadFincaData(){
   await loadLotes();
   await loadAnimales();
   await autoSyncFases();
+  await loadEventos();
   document.getElementById('finca-name').textContent = STATE.fincaName||'—';
   updateAdminUI(); updateSoporteBtn();
+  STATE.agenda = null;
   renderDashboard(); renderFilters(); renderAnimals(); fillEventAnimalSelect();
+  renderAgendaDash();
 }
 
 /* ---- Admin: panel de todas las fincas ---- */
@@ -875,7 +919,17 @@ function expBuildData(){
     a.fase_manual ? 'Manual' : 'Automática'
   ]);
 
-  return { A, kpis, resumenes, headers, filas,
+  // Tareas proyectadas de los próximos 3 meses (más lo vencido)
+  let agenda=[];
+  try{
+    agenda = construirAgenda().filter(t=>t.dias<=90).map(t=>[
+      expFecha(t.fecha.getFullYear()+'-'+String(t.fecha.getMonth()+1).padStart(2,'0')+'-'+String(t.fecha.getDate()).padStart(2,'0')),
+      t.dias<0 ? 'Vencida ('+Math.abs(t.dias)+' d)' : 'En '+t.dias+' d',
+      t.animal.codigo||'', t.titulo, t.detalle, loteOf(t.animal)||'Sin lote'
+    ]);
+  }catch(e){ agenda=[]; }
+
+  return { A, kpis, resumenes, headers, filas, agenda,
            finca: STATE.fincaName||'Mi finca',
            generado: new Date().toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'}) };
 }
@@ -1119,6 +1173,30 @@ async function expXLSX(D){
     });
   });
 
+  /* --- Hoja 4: Agenda --- */
+  if(D.agenda && D.agenda.length){
+    const ag=wb.addWorksheet('Agenda',{ views:[{state:'frozen', ySplit:1}] });
+    ag.columns=[{header:'Fecha',width:13},{header:'Plazo',width:16},{header:'Animal',width:14},
+                {header:'Tarea',width:30},{header:'Detalle',width:38},{header:'Lote',width:20}];
+    const ha=ag.getRow(1); ha.height=24;
+    ha.eachCell(c=>{
+      c.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+      c.alignment={vertical:'middle',indent:1};
+    });
+    D.agenda.forEach((f,i)=>{
+      const row=ag.addRow(f); row.height=18;
+      const vencida=/^Vencida/.test(f[1]);
+      row.eachCell(c=>{
+        c.font={size:11,color:{argb: vencida?'FFA2472F':TINTA}, bold:vencida};
+        c.alignment={vertical:'middle',indent:1};
+        c.border={bottom:{style:'hair',color:{argb:LINEA}}};
+        if(i%2===0) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+      });
+    });
+    ag.autoFilter={ from:{row:1,column:1}, to:{row:1,column:6} };
+  }
+
   const buf=await wb.xlsx.writeBuffer();
   const nombre=expNombreArchivo('xlsx');
   expDescargar(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), nombre);
@@ -1209,6 +1287,30 @@ async function expPDF(D){
     y=doc.lastAutoTable.finalY+16;
   });
 
+  /* Agenda de los próximos 3 meses */
+  if(D.agenda && D.agenda.length){
+    doc.addPage();
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...TINTA);
+    doc.text('Agenda · próximos 3 meses', M, M+6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...GRIS);
+    doc.text('Fechas estimadas a partir de los eventos registrados. Confírmalas con tu veterinario.', M, M+20);
+    doc.autoTable({
+      startY:M+30,
+      head:[['Fecha','Plazo','Animal','Tarea','Detalle','Lote']],
+      body:D.agenda,
+      margin:{left:M,right:M},
+      styles:{font:'helvetica',fontSize:8,cellPadding:4,textColor:TINTA,lineColor:[230,224,210],lineWidth:.3,overflow:'linebreak'},
+      headStyles:{fillColor:VERDE,textColor:255,fontStyle:'bold',fontSize:8},
+      alternateRowStyles:{fillColor:CREMA},
+      columnStyles:{0:{cellWidth:52},1:{cellWidth:62},2:{cellWidth:46}},
+      didParseCell:(d)=>{
+        if(d.section==='body' && /^Vencida/.test(String(d.row.raw[1]))){
+          d.cell.styles.textColor=[162,71,47]; d.cell.styles.fontStyle='bold';
+        }
+      }
+    });
+  }
+
   /* Inventario completo */
   doc.addPage();
   doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...TINTA);
@@ -1239,6 +1341,229 @@ async function expPDF(D){
 }
 /* Compatibilidad con la versión anterior */
 function exportCSV(){ exportarHato('csv'); }
+
+/* ================= Agenda / calendario reproductivo =================
+   Proyecta las tareas de manejo a partir de los eventos ya registrados.
+   Todos los umbrales están en días y son editables aquí. */
+const AGENDA_CFG = {
+  celo_retorno   : 21,   // vigilar si repite celo tras el servicio
+  palpacion      : 45,   // diagnóstico de preñez tras el servicio
+  secado         : 220,  // día de gestación en que se seca (≈60 antes del parto)
+  preparto       : 268,  // mover a maternidad (≈15 antes del parto)
+  gestacion      : 283,  // parto estimado
+  revision_parto : 30,   // revisión posparto
+  nuevo_servicio : 50,   // lista para volver a servir
+  destete        : 240   // destete del ternero (≈8 meses)
+};
+const AGENDA_TIPOS = {
+  celo     : { t:'Vigilar retorno a celo', s:'Si repite, no quedó preñada' },
+  palpar   : { t:'Palpar / diagnosticar preñez', s:'Confirmar si quedó preñada' },
+  secar    : { t:'Secar', s:'Fin de lactancia antes del parto' },
+  preparto : { t:'Mover a maternidad', s:'Entra en preparto' },
+  parto    : { t:'Parto estimado', s:'Vigilar de cerca' },
+  revision : { t:'Revisión posparto', s:'Chequeo del aparato reproductivo' },
+  servir   : { t:'Lista para nuevo servicio', s:'Ya cumplió el reposo posparto' },
+  destete  : { t:'Destete', s:'La cría cumple la edad de destete' }
+};
+
+function agSumar(fechaISO, dias){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(fechaISO||''));
+  if(!m) return null;
+  const d=new Date(+m[1], +m[2]-1, +m[3]);
+  d.setDate(d.getDate()+dias);
+  return d;
+}
+function agHoy(){ const n=new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+function agDias(fecha){ return Math.round((fecha - agHoy())/86400000); }
+function agUrgencia(dias){
+  if(dias < 0)  return 'r';
+  if(dias <= 7) return 'y';
+  return 'g';
+}
+function agCuando(dias){
+  if(dias === 0)  return 'Hoy';
+  if(dias === 1)  return 'Mañana';
+  if(dias === -1) return 'Ayer';
+  if(dias < 0)    return 'Hace '+Math.abs(dias)+' d';
+  return 'En '+dias+' d';
+}
+
+async function loadEventos(){
+  STATE.eventos = [];
+  STATE.eventosOk = false;
+  if(!STATE.fincaId) return;
+  const { data, error } = await sb.from('eventos_reproductivos')
+    .select('id,animal_id,tipo_evento,fecha,resultado_diagnostico')
+    .eq('finca_id', STATE.fincaId)
+    .order('fecha', {ascending:true});
+  if(error) return;
+  STATE.eventosOk = true;
+  STATE.eventos = data||[];
+}
+
+/* Devuelve la lista de tareas pendientes/vencidas ordenada por fecha */
+function construirAgenda(){
+  const tareas=[];
+  const porAnimal={};
+  (STATE.eventos||[]).forEach(e=>{ (porAnimal[e.animal_id] = porAnimal[e.animal_id] || []).push(e); });
+
+  STATE.animales.forEach(a=>{
+    const evs = porAnimal[a.id];
+    if(!evs || !evs.length) return;
+    const ult = tipo => { const f=evs.filter(e=>e.tipo_evento===tipo); return f.length ? f[f.length-1] : null; };
+    const hayDespues = (tipo, fecha) => evs.some(e=>e.tipo_evento===tipo && e.fecha > fecha);
+
+    const agrega=(clave, base, dias)=>{
+      const f=agSumar(base, dias);
+      if(!f) return;
+      const d=agDias(f);
+      if(d < -120) return;                 // no arrastrar tareas muy viejas
+      const info=AGENDA_TIPOS[clave];
+      tareas.push({ animal:a, clave, fecha:f, dias:d, urg:agUrgencia(d),
+                    titulo:info.t, detalle:info.s });
+    };
+
+    const servicio = ult('servicio');
+    const parto    = ult('parto');
+    const aborto   = ult('aborto');
+
+    /* ---- Ciclo a partir del último servicio ---- */
+    if(servicio){
+      const fs = servicio.fecha;
+      const cerrado = hayDespues('parto', fs) || hayDespues('aborto', fs);
+      if(!cerrado){
+        const palps = evs.filter(e=>e.tipo_evento==='palpacion' && e.fecha > fs);
+        const ultPalp = palps.length ? palps[palps.length-1] : null;
+
+        if(!ultPalp){
+          agrega('celo', fs, AGENDA_CFG.celo_retorno);
+          agrega('palpar', fs, AGENDA_CFG.palpacion);
+        }else if(ultPalp.resultado_diagnostico === 'positivo'){
+          if(!hayDespues('secado', fs)) agrega('secar', fs, AGENDA_CFG.secado);
+          agrega('preparto', fs, AGENDA_CFG.preparto);
+          agrega('parto',    fs, AGENDA_CFG.gestacion);
+        }else if(ultPalp.resultado_diagnostico === 'negativo'){
+          agrega('servir', ultPalp.fecha, 0);
+        }else{
+          agrega('palpar', ultPalp.fecha, 21);   // dudoso: repetir diagnóstico
+        }
+      }
+    }
+
+    /* ---- Ciclo posparto ---- */
+    if(parto && (!servicio || parto.fecha > servicio.fecha)){
+      agrega('revision', parto.fecha, AGENDA_CFG.revision_parto);
+      agrega('servir',   parto.fecha, AGENDA_CFG.nuevo_servicio);
+      agrega('destete',  parto.fecha, AGENDA_CFG.destete);
+    }
+
+    /* ---- Tras un aborto ---- */
+    if(aborto && (!servicio || aborto.fecha > servicio.fecha) && (!parto || aborto.fecha > parto.fecha)){
+      agrega('revision', aborto.fecha, AGENDA_CFG.revision_parto);
+      agrega('servir',   aborto.fecha, 60);
+    }
+  });
+
+  tareas.sort((x,y)=> x.fecha - y.fecha || String(x.animal.codigo||'').localeCompare(String(y.animal.codigo||''),'es',{numeric:true}));
+  return tareas;
+}
+
+function agendaFiltrada(){
+  const T = STATE.agenda||[];
+  const f = STATE.agendaFiltro||'pendientes';
+  if(f==='vencidas') return T.filter(t=>t.dias < 0);
+  if(f==='semana')   return T.filter(t=>t.dias >= 0 && t.dias <= 7);
+  if(f==='mes')      return T.filter(t=>t.dias >= 0 && t.dias <= 30);
+  if(f==='todo')     return T;
+  return T.filter(t=>t.dias <= 60);   // pendientes: lo vencido + los próximos 2 meses
+}
+function setAgendaFiltro(f){ STATE.agendaFiltro=f; renderAgenda(); }
+
+function renderAgenda(){
+  const T = STATE.agenda = construirAgenda();
+  const banner=document.getElementById('agenda-banner');
+  if(banner) banner.classList.toggle('hidden', !!(STATE.eventos||[]).length);
+
+  const vencidas = T.filter(t=>t.dias<0).length;
+  const semana   = T.filter(t=>t.dias>=0 && t.dias<=7).length;
+  const mes      = T.filter(t=>t.dias>=0 && t.dias<=30).length;
+  document.getElementById('agenda-resumen').innerHTML = `
+    <div class="ag-sum r"><div class="n">${vencidas}</div><div class="l">Vencidas</div></div>
+    <div class="ag-sum y"><div class="n">${semana}</div><div class="l">Esta semana</div></div>
+    <div class="ag-sum g"><div class="n">${mes}</div><div class="l">Este mes</div></div>`;
+
+  const filtros=[['pendientes','Pendientes'],['vencidas','Vencidas'],['semana','Esta semana'],['mes','Este mes'],['todo','Todo']];
+  const act=STATE.agendaFiltro||'pendientes';
+  document.getElementById('agenda-chips').innerHTML = filtros.map(([v,l])=>
+    `<button class="chip ${v===act?'active':''}" onclick="setAgendaFiltro('${v}')">${esc(l)}</button>`).join('');
+
+  const lista=agendaFiltrada();
+  const box=document.getElementById('agenda-lista');
+  if(!lista.length){
+    box.innerHTML = (STATE.eventos||[]).length
+      ? '<div class="empty">Nada pendiente por aquí 👌</div>'
+      : '<div class="empty">Registra un servicio o un parto y aquí verás qué viene.</div>';
+    return;
+  }
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const grupos={};
+  lista.forEach(t=>{
+    const k = t.dias<0 ? '⚠ Vencidas'
+            : t.fecha.toLocaleDateString('es-CO',{month:'long',year:'numeric'});
+    (grupos[k]=grupos[k]||[]).push(t);
+  });
+  box.innerHTML = Object.entries(grupos).map(([mesLabel,items])=>`
+    <div class="ag-mes">${esc(mesLabel)}</div>
+    <div class="ag-card">${items.map(t=>`
+      <div class="ag-row ${t.urg}" onclick="openFicha('${t.animal.id}')">
+        <div class="ag-day"><div class="d">${t.fecha.getDate()}</div><div class="m">${MES[t.fecha.getMonth()]}</div></div>
+        <div class="ag-main">
+          <div class="t">${esc(t.titulo)}</div>
+          <div class="s">${esc(t.animal.codigo||'—')}${t.animal.raza?' · '+esc(t.animal.raza):''}${loteOf(t.animal)?' · '+esc(loteOf(t.animal)):''} — ${esc(t.detalle)}</div>
+        </div>
+        <span class="ag-when ${t.urg}">${esc(agCuando(t.dias))}</span>
+      </div>`).join('')}</div>`).join('');
+}
+
+/* Resumen corto de la agenda dentro del panel de inicio */
+function renderAgendaDash(){
+  const box=document.getElementById('dash-agenda');
+  if(!box) return;
+  const T=(STATE.agenda && STATE.agenda.length ? STATE.agenda : construirAgenda());
+  STATE.agenda=T;
+  const prox=T.filter(t=>t.dias<=14).slice(0,5);
+  if(!prox.length){
+    box.innerHTML='<div class="empty" style="padding:22px">Nada urgente en las próximas dos semanas.</div>';
+    return;
+  }
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  box.innerHTML = prox.map(t=>`
+    <div class="ag-row ${t.urg}" onclick="openFicha('${t.animal.id}')">
+      <div class="ag-day"><div class="d">${t.fecha.getDate()}</div><div class="m">${MES[t.fecha.getMonth()]}</div></div>
+      <div class="ag-main">
+        <div class="t">${esc(t.titulo)}</div>
+        <div class="s">${esc(t.animal.codigo||'—')} — ${esc(t.detalle)}</div>
+      </div>
+      <span class="ag-when ${t.urg}">${esc(agCuando(t.dias))}</span>
+    </div>`).join('') +
+    (T.length>prox.length ? `<div class="ag-row" style="justify-content:center;color:var(--brand);font-weight:700;font-size:13.5px" onclick="show('agenda')">Ver toda la agenda (${T.length})</div>` : '');
+}
+
+/* Bloque de tareas proyectadas dentro de la ficha del animal */
+function fichaAgenda(a){
+  const T=(STATE.agenda && STATE.agenda.length ? STATE.agenda : construirAgenda());
+  STATE.agenda=T;
+  const mias=T.filter(t=>t.animal.id===a.id && t.dias<=120).slice(0,5);
+  if(!mias.length) return '';
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `<div class="section-title">Qué viene</div>
+    <div class="ag-card">${mias.map(t=>`
+      <div class="ag-row ${t.urg}" style="cursor:default">
+        <div class="ag-day"><div class="d">${t.fecha.getDate()}</div><div class="m">${MES[t.fecha.getMonth()]}</div></div>
+        <div class="ag-main"><div class="t">${esc(t.titulo)}</div><div class="s">${esc(t.detalle)}</div></div>
+        <span class="ag-when ${t.urg}">${esc(agCuando(t.dias))}</span>
+      </div>`).join('')}</div>`;
+}
 
 /* ================= Helpers de catálogo ================= */
 function estadoOf(a){
@@ -1479,6 +1804,7 @@ function _openFicha(id, isBack){
       <div class="kv"><span class="k">Edad</span><span class="v">${esc(edadTexto(a))}</span></div>
       <div class="kv"><span class="k">Lote</span><span class="v">${esc(loteOf(a)||'—')}</span></div>
     </div>
+    ${fichaAgenda(a)}
     <div class="section-title">Genealogía</div>
     <div class="card" style="padding:4px 16px">
       <div class="kv"><span class="k">Madre</span><span class="v">${gLink(madre,a.madre_id)}</span></div>
@@ -1746,7 +2072,7 @@ function show(screen){
   closeDrawer();
   document.getElementById('hamb').style.display='none';
   // Admin sin finca seleccionada: sus pantallas de finca redirigen a la consola.
-  if(STATE.isAdmin && !STATE.fincaId && ['inicio','animales','registrar','finca'].includes(screen)) screen='admin';
+  if(STATE.isAdmin && !STATE.fincaId && ['inicio','animales','registrar','agenda','finca'].includes(screen)) screen='admin';
   if(screen!=='ficha'){ fichaStack=[]; STATE.currentFicha=null; }
   ['config','login'].forEach(s=>document.getElementById('screen-'+s).classList.add('hidden'));
   document.getElementById('app-main').classList.add('hidden');
@@ -1759,8 +2085,9 @@ function show(screen){
   document.querySelectorAll('#bottom-nav button').forEach(b=>{
     b.classList.toggle('active', b.dataset.nav===screen || (['ficha','form'].includes(screen)&&b.dataset.nav==='animales'));
   });
-  if(['inicio','animales','registrar','finca','ajustes','admin'].includes(screen)) document.getElementById('hamb').style.display='';
+  if(['inicio','animales','registrar','agenda','finca','ajustes','admin'].includes(screen)) document.getElementById('hamb').style.display='';
   if(screen==='finca') renderFinca();
+  if(screen==='agenda') renderAgenda();
   updateAdminUI();
   window.scrollTo(0,0);
 }
