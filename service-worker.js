@@ -26,6 +26,24 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   // No cachear llamadas a Supabase (datos siempre frescos / requieren red)
   if (req.url.includes('supabase.co') || req.url.includes('supabase.in')) return;
+
+  // Páginas HTML: primero la red, para que las actualizaciones lleguen de inmediato.
+  // Si no hay señal, se usa la copia guardada.
+  const esPagina = req.mode === 'navigate' ||
+    (req.destination === 'document') ||
+    (req.headers.get('accept') || '').includes('text/html');
+  if (esPagina) {
+    e.respondWith(
+      fetch(req).then(res => {
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy)).catch(()=>{});
+        }
+        return res;
+      }).catch(() => caches.match(req).then(c => c || caches.match('./app.html')))
+    );
+    return;
+  }
   // App shell: cache-first con actualización en segundo plano
   e.respondWith(
     caches.match(req).then(cached => {
