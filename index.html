@@ -67,6 +67,15 @@
   input:focus,select:focus,textarea:focus{outline:2px solid var(--soft);border-color:var(--brand)}
   label{display:block;font-size:13px;font-weight:600;margin:14px 2px 6px}
   .field-hint{color:var(--muted);font-size:12.5px;margin-top:6px}
+  .exp-status{margin-top:12px;padding:11px 13px;border-radius:11px;background:var(--soft);color:var(--brand);
+    font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:9px}
+  .exp-status.err{background:#fef2f2;color:var(--danger)}
+  .exp-spin{width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;
+    animation:expspin .7s linear infinite;flex-shrink:0}
+  @keyframes expspin{to{transform:rotate(360deg)}}
+  .exp-drive{margin-top:12px;padding:14px;border-radius:12px;border:1px dashed var(--brand);background:var(--soft)}
+  .exp-drive-t{font-weight:700;color:var(--brand);font-size:14px}
+  .exp-drive-s{color:var(--muted);font-size:12.5px;margin-top:3px;word-break:break-all}
   /* Chips / filters */
   .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 6px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
@@ -273,7 +282,7 @@
         <div class="section-title">Acerca de</div>
         <div class="card" style="padding:14px">
           <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
-          <div class="kv"><span class="k">Versión</span><span class="v">1.4 · Rediseño</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">1.5 · Reportes</span></div>
           <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
         </div>
         <p class="field-hint" style="margin-top:14px">Instala la app: en el navegador toca “Añadir a pantalla de inicio” (Chrome/Safari).</p>
@@ -302,7 +311,20 @@
           <button id="btn-soporte" class="btn line" onclick="toggleSoporte()">Permitir soporte del admin: OFF</button>
           <p class="field-hint" style="margin:8px 2px 0">Actívalo solo cuando quieras que el administrador entre a ayudarte.</p>
         </div>
-        <button class="btn line" style="margin-top:12px" onclick="exportCSV()">Exportar animales a Excel/CSV</button>
+        <div class="section-title">Exportar información</div>
+        <div class="card" style="padding:14px">
+          <p class="field-hint" style="margin:0 0 12px">Genera un reporte completo del hato con indicadores, resúmenes y gráficas. El archivo se descarga a tu dispositivo.</p>
+          <button class="btn" onclick="exportarHato('xlsx')">Excel con gráficas (.xlsx)</button>
+          <button class="btn line" style="margin-top:10px" onclick="exportarHato('pdf')">Informe PDF con gráficas</button>
+          <button class="btn line" style="margin-top:10px" onclick="exportarHato('csv')">CSV limpio (solo datos)</button>
+          <div id="exp-status" class="exp-status hidden"></div>
+          <div id="exp-drive" class="exp-drive hidden">
+            <div class="exp-drive-t">Archivo descargado</div>
+            <div class="exp-drive-s" id="exp-drive-file">—</div>
+            <button class="btn ghost" style="margin-top:10px" onclick="abrirDrive()">Subirlo a Google Drive</button>
+            <p class="field-hint" style="margin-top:8px">Se abrirá tu Drive: arrastra allí el archivo que acabas de descargar, o usa <b>Nuevo → Subir archivo</b>.</p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -684,18 +706,486 @@ async function renderFincaUsuarios(){
   box.innerHTML = U.length ? U.map(u=>`<div class="row"><div class="avatar">${esc((u.usuarios?.email||'?').slice(0,2).toUpperCase())}</div><div class="main"><div class="t">${esc(u.usuarios?.email||'—')}</div><div class="s">${esc(cap(u.rol||'—'))}</div></div></div>`).join('')
     : '<div class="empty" style="padding:16px">Solo tú por ahora. (Invitar usuarios llega pronto.)</div>';
 }
-function exportCSV(){
-  if(!STATE.animales.length){ toast('No hay animales para exportar'); return; }
-  const H=['codigo','id_electronico','raza','sexo','nacimiento','categoria','estado','lote'];
-  const rows=[H];
-  STATE.animales.forEach(a=>rows.push([a.codigo,a.id_electronico,a.raza,a.sexo,a.fecha_nacimiento,catOf(a),estadoOf(a),loteOf(a)]));
-  const csv=rows.map(r=>r.map(c=>`"${(c==null?'':String(c)).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob), link=document.createElement('a');
-  link.href=url; link.download='vantik_'+((STATE.fincaName||'finca').replace(/\s+/g,'_'))+'.csv';
-  document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-  toast('✓ Exportado a CSV');
+/* ================= Centro de exportación =================
+   Tres formatos: Excel (.xlsx) con gráficas, informe PDF y CSV limpio.
+   Las librerías se cargan bajo demanda para no pesar en el arranque. */
+const EXP_LIB = {
+  exceljs  : 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  chart    : 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+  jspdf    : 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  autotable: 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'
+};
+const EXP_COLORS = ['#2e7d46','#7cb342','#c9a227','#4e7d8e','#8d6e63','#a8577f','#5f7a4a','#d1743a','#6b8e9f','#b0894f'];
+const EXP_ORDEN_EDAD = ['0–8 meses','9–15 meses','16–24 meses','2–3 años','3–5 años','Más de 5 años','Sin fecha'];
+let EXP_BUSY = false;
+
+function loadLib(src){
+  return new Promise((ok,fail)=>{
+    const prev = document.querySelector('script[data-lib="'+src+'"]');
+    if(prev){ prev.dataset.ready==='1' ? ok() : prev.addEventListener('load',()=>ok()); return; }
+    const s=document.createElement('script');
+    s.src=src; s.dataset.lib=src;
+    s.onload=()=>{ s.dataset.ready='1'; ok(); };
+    s.onerror=()=>fail(new Error('No se pudo descargar un componente. Revisa tu conexión.'));
+    document.head.appendChild(s);
+  });
 }
+function expStatus(msg, err){
+  const b=document.getElementById('exp-status'); if(!b) return;
+  if(!msg){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err?' err':'');
+  b.innerHTML = (err?'':'<span class="exp-spin"></span>') + '<span>'+esc(msg)+'</span>';
+}
+function expDone(nombre){
+  expStatus('');
+  const box=document.getElementById('exp-drive');
+  if(box){ box.classList.remove('hidden'); document.getElementById('exp-drive-file').textContent=nombre; }
+  toast('✓ '+nombre+' descargado');
+}
+function abrirDrive(){ window.open('https://drive.google.com/drive/my-drive','_blank','noopener'); }
+
+function expFecha(d){
+  if(!d) return '';
+  const x=new Date(d); if(isNaN(x)) return String(d);
+  return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear();
+}
+function expHoy(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+function expNombreArchivo(ext){
+  const f=(STATE.fincaName||'finca').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_');
+  return 'Vantik_'+f+'_'+expHoy()+'.'+ext;
+}
+function expRangoEdad(a){
+  const m=edadMeses(a);
+  if(m==null) return 'Sin fecha';
+  if(m<9)  return '0–8 meses';
+  if(m<16) return '9–15 meses';
+  if(m<25) return '16–24 meses';
+  if(m<37) return '2–3 años';
+  if(m<61) return '3–5 años';
+  return 'Más de 5 años';
+}
+function expTally(arr, fn, orden){
+  const m=new Map();
+  arr.forEach(a=>{ const k=String(fn(a)||'').trim() || 'Sin dato'; m.set(k,(m.get(k)||0)+1); });
+  let out=[...m.entries()];
+  if(orden) out.sort((x,y)=> orden.indexOf(x[0]) - orden.indexOf(y[0]));
+  else out.sort((x,y)=> y[1]-x[1] || String(x[0]).localeCompare(String(y[0]),'es'));
+  return out;
+}
+function expEdadTxt(m){
+  if(m==null) return '—';
+  if(m<24) return m+' meses';
+  const y=Math.floor(m/12), r=m%12;
+  return y+' año'+(y===1?'':'s')+(r?(' '+r+' m'):'');
+}
+
+/* Reúne todo lo que necesitan los tres formatos */
+function expBuildData(){
+  const A = STATE.animales.slice().sort((x,y)=>
+    String(x.codigo||'').localeCompare(String(y.codigo||''),'es',{numeric:true,sensitivity:'base'}));
+  const hembras = A.filter(esHembra);
+  const machos  = A.filter(a=>!esHembra(a));
+  const aptas   = A.filter(esApta);
+  const prenadas= A.filter(a=>/pren|gest/i.test(estadoCodeOf(a)||''));
+  const lactando= A.filter(a=>/lactan/i.test(estadoCodeOf(a)||''));
+  const edades  = A.map(a=>edadMeses(a)).filter(m=>m!=null);
+  const edadProm= edades.length ? Math.round(edades.reduce((s,m)=>s+m,0)/edades.length) : null;
+
+  const kpis = [
+    ['Total de animales', A.length],
+    ['Hembras', hembras.length],
+    ['Machos', machos.length],
+    ['Hembras aptas para reproducción', aptas.length],
+    ['Preñadas', prenadas.length],
+    ['Tasa de preñez', aptas.length ? Math.round(prenadas.length*100/aptas.length)+' %' : '—'],
+    ['En lactancia', lactando.length],
+    ['Edad promedio del hato', expEdadTxt(edadProm)]
+  ];
+
+  const resumenes = [
+    { titulo:'Composición del hato por categoría', tipo:'doughnut', col:'Categoría', data: expTally(A, catOf) },
+    { titulo:'Distribución por sexo',              tipo:'doughnut', col:'Sexo',
+      data: [['Hembras',hembras.length],['Machos',machos.length]].filter(d=>d[1]>0) },
+    { titulo:'Composición por raza',               tipo:'bar',      col:'Raza',     data: expTally(A, a=>a.raza) },
+    { titulo:'Estado reproductivo de las hembras', tipo:'doughnut', col:'Estado',   data: expTally(hembras, estadoOf) },
+    { titulo:'Animales por lote / potrero',        tipo:'bar',      col:'Lote',     data: expTally(A, a=>loteOf(a)||'Sin lote') },
+    { titulo:'Distribución por edad',              tipo:'bar',      col:'Rango de edad', data: expTally(A, expRangoEdad, EXP_ORDEN_EDAD) }
+  ].filter(r=>r.data.length);
+
+  const headers = ['Código','ID electrónico','Raza','Sexo','Nacimiento','Edad','Categoría','Estado','Lote','Fase'];
+  const filas = A.map(a=>[
+    a.codigo||'', a.id_electronico||'', a.raza||'',
+    esHembra(a)?'Hembra':'Macho',
+    expFecha(a.fecha_nacimiento),
+    edadTexto(a),
+    catOf(a)||'', estadoOf(a)||'', loteOf(a)||'Sin lote',
+    a.fase_manual ? 'Manual' : 'Automática'
+  ]);
+
+  return { A, kpis, resumenes, headers, filas,
+           finca: STATE.fincaName||'Mi finca',
+           generado: new Date().toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'}) };
+}
+
+/* Dibuja una gráfica fuera de pantalla y la devuelve como PNG */
+async function expChartPNG(r){
+  const cv=document.createElement('canvas');
+  cv.width=760; cv.height=440;
+  cv.style.cssText='position:fixed;left:-99999px;top:0';
+  document.body.appendChild(cv);
+  const labels=r.data.map(d=>d[0]), vals=r.data.map(d=>d[1]);
+  const colors=labels.map((_,i)=>EXP_COLORS[i%EXP_COLORS.length]);
+  const esBar = r.tipo==='bar';
+  const ch=new Chart(cv.getContext('2d'),{
+    type:r.tipo,
+    data:{ labels, datasets:[{ label:'Animales', data:vals, backgroundColor:colors,
+      borderColor:'#ffffff', borderWidth:esBar?0:2, borderRadius:esBar?7:0, maxBarThickness:78 }] },
+    options:{ responsive:false, animation:false, devicePixelRatio:2, layout:{padding:14},
+      plugins:{
+        legend:{ display:!esBar, position:'right', labels:{ color:'#26302a', font:{size:14}, boxWidth:14, padding:12 } },
+        title:{ display:true, text:r.titulo, color:'#26302a', font:{size:18,weight:'bold'}, padding:{bottom:14} }
+      },
+      scales: esBar ? {
+        y:{ beginAtZero:true, ticks:{ precision:0, color:'#7c8579', font:{size:13} }, grid:{ color:'#ece7db' } },
+        x:{ ticks:{ color:'#26302a', font:{size:13} }, grid:{ display:false } }
+      } : {}
+    }
+  });
+  await new Promise(res=>setTimeout(res,80));
+  const out=document.createElement('canvas');
+  out.width=cv.width; out.height=cv.height;
+  const g=out.getContext('2d');
+  g.fillStyle='#ffffff'; g.fillRect(0,0,out.width,out.height);
+  g.drawImage(cv,0,0,out.width,out.height);
+  const png=out.toDataURL('image/png');
+  ch.destroy(); cv.remove();
+  return png;
+}
+async function expTodasLasGraficas(D){
+  await loadLib(EXP_LIB.chart);
+  const imgs=[];
+  for(const r of D.resumenes){ imgs.push({ r, png: await expChartPNG(r) }); }
+  return imgs;
+}
+function expDescargar(blob, nombre){
+  const url=URL.createObjectURL(blob), link=document.createElement('a');
+  link.href=url; link.download=nombre;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+/* ---------- Punto de entrada ---------- */
+async function exportarHato(formato){
+  if(EXP_BUSY) return;
+  if(!STATE.animales.length){ toast('No hay animales para exportar'); return; }
+  EXP_BUSY=true;
+  const box=document.getElementById('exp-drive'); if(box) box.classList.add('hidden');
+  try{
+    const D=expBuildData();
+    if(formato==='csv'){ expStatus('Preparando el archivo…'); await expCSV(D); }
+    else if(formato==='xlsx'){ expStatus('Generando el Excel con gráficas…'); await expXLSX(D); }
+    else { expStatus('Armando el informe PDF…'); await expPDF(D); }
+  }catch(e){
+    console.error(e);
+    expStatus(e.message||'No se pudo generar el archivo.', true);
+    toast('Error al exportar');
+  }finally{ EXP_BUSY=false; }
+}
+
+/* ---------- 1. CSV limpio ---------- */
+async function expCSV(D){
+  const q=v=>{ const s=(v==null?'':String(v)); return /[";\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lineas=[ D.headers.map(q).join(';') ];
+  D.filas.forEach(f=>lineas.push(f.map(q).join(';')));
+  const blob=new Blob(['﻿'+lineas.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const nombre=expNombreArchivo('csv');
+  expDescargar(blob, nombre);
+  expDone(nombre);
+}
+
+/* ---------- 2. Excel con gráficas ---------- */
+async function expXLSX(D){
+  await loadLib(EXP_LIB.exceljs);
+  const imgs = await expTodasLasGraficas(D);
+
+  const VERDE='FF2E7D46', VERDE_SUAVE='FFEAF3EC', CREMA='FFF7F4EC', TINTA='FF26302A', GRIS='FF7C8579', LINEA='FFE6E0D2';
+  const wb=new ExcelJS.Workbook();
+  wb.creator='Vantik'; wb.company='Vantik'; wb.created=new Date();
+
+  /* --- Hoja 1: Resumen --- */
+  const ws=wb.addWorksheet('Resumen',{ views:[{showGridLines:false}], properties:{defaultRowHeight:17} });
+  ws.columns=[{width:3},{width:32},{width:12},{width:12},{width:3},{width:12},{width:12},{width:12},{width:12},{width:12},{width:12},{width:12}];
+
+  ws.mergeCells('B2:H2');
+  const t1=ws.getCell('B2');
+  t1.value='VANTIK · Reporte del hato';
+  t1.font={name:'Calibri',size:22,bold:true,color:{argb:VERDE}};
+  ws.getRow(2).height=32;
+  ws.mergeCells('B3:H3');
+  ws.getCell('B3').value=D.finca;
+  ws.getCell('B3').font={size:13,bold:true,color:{argb:TINTA}};
+  ws.mergeCells('B4:H4');
+  ws.getCell('B4').value='Generado el '+D.generado;
+  ws.getCell('B4').font={size:10,italic:true,color:{argb:GRIS}};
+
+  let fila=6;
+  ws.mergeCells('B'+fila+':D'+fila);
+  const hK=ws.getCell('B'+fila);
+  hK.value='INDICADORES DEL HATO';
+  hK.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+  hK.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+  hK.alignment={vertical:'middle',indent:1};
+  ws.getRow(fila).height=22;
+  fila++;
+  D.kpis.forEach((k,i)=>{
+    const r=ws.getRow(fila);
+    r.getCell(2).value=k[0];
+    r.getCell(2).font={size:11,color:{argb:TINTA}};
+    r.getCell(2).alignment={indent:1};
+    ws.mergeCells('C'+fila+':D'+fila);
+    r.getCell(3).value=k[1];
+    r.getCell(3).font={size:12,bold:true,color:{argb:VERDE}};
+    r.getCell(3).alignment={horizontal:'center'};
+    if(i%2===0){
+      [2,3,4].forEach(c=>{ r.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}}; });
+    }
+    [2,3,4].forEach(c=>{ r.getCell(c).border={bottom:{style:'thin',color:{argb:LINEA}}}; });
+    r.height=19;
+    fila++;
+  });
+
+  fila+=2;
+  /* Bloques: tabla a la izquierda + gráfica a la derecha */
+  for(const {r,png} of imgs){
+    const inicio=fila;
+    ws.mergeCells('B'+fila+':D'+fila);
+    const h=ws.getCell('B'+fila);
+    h.value=r.titulo.toUpperCase();
+    h.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+    h.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+    h.alignment={vertical:'middle',indent:1};
+    ws.getRow(fila).height=22;
+    fila++;
+
+    const th=ws.getRow(fila);
+    ['',r.col,'Animales','% del total'].forEach((v,i)=>{ if(i>0) th.getCell(i+1).value=v; });
+    [2,3,4].forEach(c=>{
+      th.getCell(c).font={size:10,bold:true,color:{argb:VERDE}};
+      th.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE_SUAVE}};
+      th.getCell(c).alignment={horizontal:c===2?'left':'center',indent:c===2?1:0};
+      th.getCell(c).border={bottom:{style:'thin',color:{argb:LINEA}}};
+    });
+    fila++;
+
+    const total=r.data.reduce((s,d)=>s+d[1],0)||1;
+    r.data.forEach((d,i)=>{
+      const row=ws.getRow(fila);
+      row.getCell(2).value=d[0];
+      row.getCell(2).alignment={indent:1};
+      row.getCell(3).value=d[1];
+      row.getCell(3).alignment={horizontal:'center'};
+      row.getCell(4).value=d[1]/total;
+      row.getCell(4).numFmt='0.0%';
+      row.getCell(4).alignment={horizontal:'center'};
+      [2,3,4].forEach(c=>{
+        row.getCell(c).font={size:11,color:{argb:TINTA}};
+        row.getCell(c).border={bottom:{style:'hair',color:{argb:LINEA}}};
+        if(i%2===0) row.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+      });
+      row.height=18;
+      fila++;
+    });
+    const tot=ws.getRow(fila);
+    tot.getCell(2).value='Total';
+    tot.getCell(3).value=total;
+    tot.getCell(4).value=1;
+    tot.getCell(4).numFmt='0.0%';
+    [2,3,4].forEach(c=>{
+      tot.getCell(c).font={size:11,bold:true,color:{argb:VERDE}};
+      tot.getCell(c).alignment={horizontal:c===2?'left':'center',indent:c===2?1:0};
+      tot.getCell(c).border={top:{style:'thin',color:{argb:VERDE}}};
+    });
+    fila++;
+
+    const id=wb.addImage({ base64:png, extension:'png' });
+    ws.addImage(id, { tl:{col:5.2,row:inicio-0.7}, ext:{width:452,height:262} });
+
+    const alto=Math.max(fila-inicio, 15);
+    fila = inicio + alto + 2;
+  }
+
+  /* --- Hoja 2: Inventario --- */
+  const inv=wb.addWorksheet('Inventario',{ views:[{state:'frozen', ySplit:1}] });
+  inv.columns=[
+    {header:'Código',width:14},{header:'ID electrónico',width:20},{header:'Raza',width:16},
+    {header:'Sexo',width:10},{header:'Nacimiento',width:14},{header:'Edad',width:16},
+    {header:'Categoría',width:16},{header:'Estado',width:20},{header:'Lote',width:20},{header:'Fase',width:12}
+  ];
+  const hr=inv.getRow(1); hr.height=26;
+  hr.eachCell(c=>{
+    c.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+    c.alignment={vertical:'middle',horizontal:'left',indent:1};
+  });
+  D.filas.forEach((f,i)=>{
+    const row=inv.addRow(f);
+    row.height=18;
+    row.eachCell(c=>{
+      c.font={size:11,color:{argb:TINTA}};
+      c.alignment={vertical:'middle',indent:1};
+      c.border={bottom:{style:'hair',color:{argb:LINEA}}};
+      if(i%2===0) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+    });
+  });
+  inv.autoFilter={ from:{row:1,column:1}, to:{row:1,column:10} };
+
+  /* --- Hoja 3: Por lote --- */
+  const porLote=wb.addWorksheet('Por lote');
+  porLote.columns=[{header:'Lote / potrero',width:26},{header:'Animales',width:12},
+    {header:'Hembras',width:12},{header:'Machos',width:12},{header:'Preñadas',width:12},{header:'Edad promedio',width:18}];
+  const hl=porLote.getRow(1); hl.height=24;
+  hl.eachCell(c=>{
+    c.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+    c.alignment={vertical:'middle',indent:1};
+  });
+  const lotes=[...new Set(D.A.map(a=>loteOf(a)||'Sin lote'))].sort((a,b)=>a.localeCompare(b,'es'));
+  lotes.forEach((L,i)=>{
+    const g=D.A.filter(a=>(loteOf(a)||'Sin lote')===L);
+    const ed=g.map(a=>edadMeses(a)).filter(m=>m!=null);
+    const row=porLote.addRow([ L, g.length, g.filter(esHembra).length, g.filter(a=>!esHembra(a)).length,
+      g.filter(a=>/pren|gest/i.test(estadoCodeOf(a)||'')).length,
+      expEdadTxt(ed.length?Math.round(ed.reduce((s,m)=>s+m,0)/ed.length):null) ]);
+    row.height=18;
+    row.eachCell(c=>{
+      c.font={size:11,color:{argb:TINTA}};
+      c.alignment={vertical:'middle',indent:1};
+      c.border={bottom:{style:'hair',color:{argb:LINEA}}};
+      if(i%2===0) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+    });
+  });
+
+  const buf=await wb.xlsx.writeBuffer();
+  const nombre=expNombreArchivo('xlsx');
+  expDescargar(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), nombre);
+  expDone(nombre);
+}
+
+/* ---------- 3. Informe PDF ---------- */
+async function expLogoPNG(){
+  try{
+    const res=await fetch('cow-moo.png');
+    const b=await res.blob();
+    return await new Promise(ok=>{ const fr=new FileReader(); fr.onload=()=>ok(fr.result); fr.onerror=()=>ok(null); fr.readAsDataURL(b); });
+  }catch(e){ return null; }
+}
+async function expPDF(D){
+  await loadLib(EXP_LIB.jspdf);
+  await loadLib(EXP_LIB.autotable);
+  const imgs=await expTodasLasGraficas(D);
+  const logo=await expLogoPNG();
+
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF({unit:'pt', format:'a4'});
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  const M=42;
+  const VERDE=[46,125,70], TINTA=[38,48,42], GRIS=[124,133,121], CREMA=[247,244,236];
+
+  /* Portada / encabezado */
+  doc.setFillColor(...VERDE); doc.rect(0,0,W,132,'F');
+  if(logo){ try{ doc.addImage(logo,'PNG',M,30,52,52); }catch(e){} }
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(26);
+  doc.text('Vantik', logo?M+68:M, 58);
+  doc.setFont('helvetica','normal'); doc.setFontSize(13);
+  doc.text('Reporte del hato', logo?M+68:M, 78);
+  doc.setFontSize(10);
+  doc.text(D.finca, logo?M+68:M, 98);
+  doc.text('Generado el '+D.generado, logo?M+68:M, 113);
+
+  /* Indicadores en tarjetas */
+  let y=160;
+  doc.setTextColor(...TINTA); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('Indicadores del hato', M, y);
+  y+=14;
+  const cw=(W-M*2-24)/4, chh=58;
+  D.kpis.forEach((k,i)=>{
+    const col=i%4, rowi=Math.floor(i/4);
+    const x=M+col*(cw+8), yy=y+rowi*(chh+8);
+    doc.setFillColor(...CREMA);
+    doc.roundedRect(x,yy,cw,chh,7,7,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...VERDE);
+    doc.text(String(k[1]), x+10, yy+27);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...GRIS);
+    doc.text(doc.splitTextToSize(k[0], cw-16), x+10, yy+40);
+  });
+  y += Math.ceil(D.kpis.length/4)*(chh+8) + 18;
+
+  /* Gráficas: 2 por fila */
+  const gw=(W-M*2-16)/2, gh=gw*440/760;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...TINTA);
+  doc.text('Resúmenes visuales', M, y); y+=12;
+  imgs.forEach((it,i)=>{
+    const col=i%2;
+    if(col===0 && y+gh > H-60){ doc.addPage(); y=M+10; }
+    const x=M+col*(gw+16);
+    doc.setDrawColor(230,224,210);
+    doc.roundedRect(x,y,gw,gh,6,6,'S');
+    try{ doc.addImage(it.png,'PNG',x+2,y+2,gw-4,gh-4); }catch(e){}
+    if(col===1) y+=gh+14;
+  });
+  if(imgs.length%2===1) y+=gh+14;
+
+  /* Tablas de resumen */
+  D.resumenes.forEach(r=>{
+    const total=r.data.reduce((s,d)=>s+d[1],0)||1;
+    doc.autoTable({
+      startY: (y>H-140? (doc.addPage(), y=M) : y)+6,
+      head:[[r.col,'Animales','% del total']],
+      body: r.data.map(d=>[d[0], d[1], (d[1]*100/total).toFixed(1)+' %']),
+      foot:[['Total', total, '100 %']],
+      margin:{left:M,right:M},
+      styles:{font:'helvetica',fontSize:9,cellPadding:5,textColor:TINTA,lineColor:[230,224,210],lineWidth:.4},
+      headStyles:{fillColor:VERDE,textColor:255,fontStyle:'bold',fontSize:9},
+      footStyles:{fillColor:[234,243,236],textColor:VERDE,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:CREMA},
+      columnStyles:{1:{halign:'center'},2:{halign:'center'}},
+      didDrawPage:()=>{}
+    });
+    y=doc.lastAutoTable.finalY+16;
+  });
+
+  /* Inventario completo */
+  doc.addPage();
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...TINTA);
+  doc.text('Inventario completo · '+D.filas.length+' animales', M, M+6);
+  doc.autoTable({
+    startY:M+18,
+    head:[D.headers],
+    body:D.filas,
+    margin:{left:M,right:M},
+    styles:{font:'helvetica',fontSize:7.5,cellPadding:3.5,textColor:TINTA,lineColor:[230,224,210],lineWidth:.3,overflow:'linebreak'},
+    headStyles:{fillColor:VERDE,textColor:255,fontStyle:'bold',fontSize:7.5},
+    alternateRowStyles:{fillColor:CREMA},
+    columnStyles:{1:{cellWidth:70},3:{cellWidth:38},4:{cellWidth:48}}
+  });
+
+  /* Pie de página */
+  const paginas=doc.internal.getNumberOfPages();
+  for(let p=1;p<=paginas;p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GRIS);
+    doc.text('Vantik · '+D.finca, M, H-22);
+    doc.text('Página '+p+' de '+paginas, W-M, H-22, {align:'right'});
+  }
+
+  const nombre=expNombreArchivo('pdf');
+  expDescargar(doc.output('blob'), nombre);
+  expDone(nombre);
+}
+/* Compatibilidad con la versión anterior */
+function exportCSV(){ exportarHato('csv'); }
 
 /* ================= Helpers de catálogo ================= */
 function estadoOf(a){
