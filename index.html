@@ -747,6 +747,9 @@ function abrirDrive(){ window.open('https://drive.google.com/drive/my-drive','_b
 
 function expFecha(d){
   if(!d) return '';
+  // Las fechas ISO (AAAA-MM-DD) se interpretan en UTC y se corrían un día: las leemos tal cual.
+  const iso=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+  if(iso) return iso[3]+'/'+iso[2]+'/'+iso[1];
   const x=new Date(d); if(isNaN(x)) return String(d);
   return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear();
 }
@@ -858,7 +861,8 @@ async function expChartPNG(r){
   const g=out.getContext('2d');
   g.fillStyle='#ffffff'; g.fillRect(0,0,out.width,out.height);
   g.drawImage(cv,0,0,out.width,out.height);
-  const png=out.toDataURL('image/png');
+  // JPEG comprimido: mantiene la calidad de la gráfica y evita archivos gigantes.
+  const png=out.toDataURL('image/jpeg', 0.92);
   ch.destroy(); cv.remove();
   return png;
 }
@@ -1008,7 +1012,7 @@ async function expXLSX(D){
     });
     fila++;
 
-    const id=wb.addImage({ base64:png, extension:'png' });
+    const id=wb.addImage({ base64:png, extension:'jpeg' });
     ws.addImage(id, { tl:{col:5.2,row:inicio-0.7}, ext:{width:452,height:262} });
 
     const alto=Math.max(fila-inicio, 15);
@@ -1087,7 +1091,7 @@ async function expPDF(D){
   const logo=await expLogoPNG();
 
   const { jsPDF } = window.jspdf;
-  const doc=new jsPDF({unit:'pt', format:'a4'});
+  const doc=new jsPDF({unit:'pt', format:'a4', compress:true});
   const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
   const M=42;
   const VERDE=[46,125,70], TINTA=[38,48,42], GRIS=[124,133,121], CREMA=[247,244,236];
@@ -1132,7 +1136,7 @@ async function expPDF(D){
     const x=M+col*(gw+16);
     doc.setDrawColor(230,224,210);
     doc.roundedRect(x,y,gw,gh,6,6,'S');
-    try{ doc.addImage(it.png,'PNG',x+2,y+2,gw-4,gh-4); }catch(e){}
+    try{ doc.addImage(it.png,'JPEG',x+2,y+2,gw-4,gh-4,undefined,'FAST'); }catch(e){}
     if(col===1) y+=gh+14;
   });
   if(imgs.length%2===1) y+=gh+14;
