@@ -1,8 +1,8 @@
 // Vantik service worker — cachea el shell de la app para instalación/offline básico.
-const CACHE = 'vantik-v16';
+const CACHE = 'vantik-v17';
 const ASSETS = [
   './',
-  './index.html',
+  './app.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',

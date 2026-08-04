@@ -2,7 +2,7 @@
   "name": "Vantik — Control ganadero",
   "short_name": "Vantik",
   "description": "Control ganadero de tu finca: animales, estados reproductivos, eventos.",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
