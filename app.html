@@ -208,6 +208,34 @@
   .unidad-sel button{flex:1;padding:10px;border-radius:11px;border:1px solid var(--line);
     background:#fff;color:var(--muted);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
   .unidad-sel button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  /* ---- Ventana emergente y árbol genealógico ---- */
+  .modal-bg{position:fixed;inset:0;background:rgba(23,58,32,.55);z-index:60;
+    display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+  .modal-card{background:var(--bg);width:100%;max-width:560px;max-height:88vh;overflow:auto;
+    border-radius:22px 22px 0 0;padding:18px 16px 30px;box-shadow:0 -8px 30px rgba(23,58,32,.25)}
+  @media(min-width:600px){ .modal-bg{align-items:center} .modal-card{border-radius:20px} }
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+  .modal-head h2{font-size:19px;font-weight:800;margin:0}
+  .modal-x{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;
+    font-size:17px;line-height:1;cursor:pointer;color:var(--muted);flex-shrink:0;font-family:inherit}
+  .gen-nivel{text-align:center;font-size:11px;font-weight:800;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.07em;margin:2px 0 7px}
+  .gen-fila{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .gen-card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:9px 11px;min-width:104px;text-align:center;box-shadow:var(--shadow)}
+  .gen-card.v{border-color:var(--brand);cursor:pointer}
+  .gen-card.v:active{background:var(--soft)}
+  .gen-card .c{font-weight:800;font-size:15px;color:var(--brand);line-height:1.15}
+  .gen-card .r{font-size:11px;color:var(--muted);margin-top:2px}
+  .gen-card.vacio{opacity:.45;border-style:dashed}
+  .gen-card.vacio .c{color:var(--muted);font-weight:600;font-size:13px}
+  .gen-link{width:2px;height:15px;background:var(--line);margin:5px auto}
+  .gen-yo{display:flex;justify-content:center;margin:4px 0 2px}
+  .gen-yo .chapeta{width:132px;margin:0}
+  .gen-yo .chapeta-body{min-height:88px;padding:16px 12px 18px}
+  .gen-yo .chapeta-body span{font-size:38px}
+  .gen-yo .chapeta.m .chapeta-body span{font-size:30px}
+  .gen-yo .chapeta.l .chapeta-body span{font-size:21px}
   .nav-dot{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;
     border-radius:99px;background:#b3261e;color:#fff;font-size:11px;font-weight:800}
   .spinner{width:30px;height:30px;border:3px solid var(--soft);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:36px auto}
@@ -302,6 +330,9 @@
     <label>Contraseña</label>
     <input id="log-pass" type="password" placeholder="••••••••">
     <button class="btn" style="margin-top:18px" onclick="doLogin()">Entrar</button>
+    <p class="field-hint" style="text-align:right;margin-top:10px">
+      <a onclick="show('recuperar')" style="color:var(--brand);font-weight:700;cursor:pointer">¿Olvidaste tu contraseña?</a>
+    </p>
     <button class="btn line" style="margin-top:10px" onclick="show('registro')">Crear mi cuenta</button>
     <button class="btn ghost" style="margin-top:10px" onclick="show('invitacion')">Tengo un código de invitación</button>
     <p class="field-hint" style="text-align:center;margin-top:16px">
@@ -371,6 +402,18 @@
     <button class="back" style="margin-top:12px;justify-content:center" onclick="doLogout()">Cerrar sesión</button>
   </section>
 
+<section id="screen-recuperar" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Recuperar contraseña</h1>
+    <p class="lead">Escribe tu correo y te mandamos un enlace para poner una nueva.</p>
+    <label>Tu correo</label>
+    <input id="rec-email" type="email" placeholder="tu@correo.com" autocapitalize="off" autocomplete="email">
+    <button class="btn" style="margin-top:18px" id="rec-btn" onclick="recuperarClave()">Enviarme el enlace</button>
+    <div id="rec-msg" class="exp-status hidden" style="margin-top:14px"></div>
+    <p class="field-hint" style="text-align:center;margin-top:14px">¿No te llega? Revisa el spam, o pídele al dueño de la finca que te vuelva a invitar.</p>
+    <button class="back" style="margin-top:10px;justify-content:center" onclick="show('login')">← Volver</button>
+  </section>
+
 <section id="screen-clave" class="centered hidden">
     <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
     <h1 class="title-xl">Crea tu contraseña</h1>
@@ -382,6 +425,8 @@
     <button class="btn" style="margin-top:18px" id="clave-btn" onclick="guardarClave()">Guardar y entrar</button>
     <div id="clave-msg" class="exp-status hidden" style="margin-top:14px"></div>
   </section>
+
+  <div id="modal-arbol" class="modal-bg hidden"></div>
 
   <!-- ============ MAIN APP ============ -->
   <main id="app-main" class="hidden">
@@ -459,7 +504,7 @@
         <div class="section-title">Acerca de</div>
         <div class="card" style="padding:14px">
           <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
-          <div class="kv"><span class="k">Versión</span><span class="v">2.0 · Registro</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">2.1 · Genealogía</span></div>
           <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
         </div>
         <button class="btn line" style="margin-top:14px" onclick="mostrarChecklist()">Ver la guía de primeros pasos</button>
@@ -694,9 +739,17 @@ function initClient(){
 async function checkSession(){
   const m=/[#&]inv=([A-Za-z0-9\-]+)/.exec(location.hash||'');
   const codigoInv = m ? m[1].toUpperCase() : null;
+  const esRecuperacion = /type=recovery/.test(location.hash||'');
   const { data } = await sb.auth.getSession();
   if(data.session){
     STATE.user=data.session.user;
+    if(esRecuperacion){
+      hideBoot();
+      location.hash='';
+      document.getElementById('clave-sub').textContent='Escribe la contraseña nueva que vas a usar de ahora en adelante.';
+      show('clave');
+      return;
+    }
     if(codigoInv){
       hideBoot();
       const ok = await procesarInvitacionDeEnlace(codigoInv);
@@ -2102,6 +2155,101 @@ async function revisarEstado(){
   toast('Todavía no está aprobada');
 }
 
+/* ================= Árbol genealógico ================= */
+function animalPorId(id){
+  if(!id) return null;
+  return (STATE.animales||[]).find(function(a){ return a.id === id; }) || null;
+}
+function genCard(a, etiqueta){
+  if(!a) return '<div class="gen-card vacio"><div class="c">Sin registro</div><div class="r">' + esc(etiqueta) + '</div></div>';
+  const extra = [a.raza, a.sexo ? (esHembra(a) ? 'hembra' : 'macho') : null].filter(Boolean).join(' · ');
+  return '<div class="gen-card v" onclick="abrirArbol(\'' + a.id + '\')">' +
+           '<div class="c">' + esc(a.codigo || '—') + '</div>' +
+           '<div class="r">' + esc(etiqueta) + (extra ? ' · ' + esc(extra) : '') + '</div>' +
+         '</div>';
+}
+function abrirArbol(id){
+  const a = animalPorId(id);
+  if(!a) return;
+  const madre = animalPorId(a.madre_id), padre = animalPorId(a.padre_id);
+  const abMM = madre ? animalPorId(madre.madre_id) : null;
+  const abMP = madre ? animalPorId(madre.padre_id) : null;
+  const abPM = padre ? animalPorId(padre.madre_id) : null;
+  const abPP = padre ? animalPorId(padre.padre_id) : null;
+  const hijos = (STATE.animales||[]).filter(function(x){ return x.madre_id === a.id || x.padre_id === a.id; });
+  const hayAbuelos = !!(abMM || abMP || abPM || abPP);
+  const hayPadres = !!(madre || padre);
+
+  let html = '';
+  if(hayAbuelos){
+    html += '<div class="gen-nivel">Abuelos</div><div class="gen-fila">' +
+            genCard(abMM,'abuela materna') + genCard(abMP,'abuelo materno') +
+            genCard(abPM,'abuela paterna') + genCard(abPP,'abuelo paterno') +
+            '</div><div class="gen-link"></div>';
+  }
+  html += '<div class="gen-nivel">Padres</div><div class="gen-fila">' +
+          genCard(madre,'madre') + genCard(padre,'padre') + '</div>';
+  html += '<div class="gen-link"></div>';
+  html += '<div class="gen-nivel">Este animal</div><div class="gen-yo">' + chapetaHTML(a.codigo) + '</div>';
+  html += '<div class="gen-nivel" style="margin-top:12px">' +
+          (hijos.length ? 'Crías (' + hijos.length + ')' : 'Crías') + '</div>';
+  if(hijos.length){
+    html += '<div class="gen-link"></div><div class="gen-fila">' +
+            hijos.map(function(h){
+              return genCard(h, (h.madre_id === a.id ? 'hijo de esta madre' : 'hijo de este padre'));
+            }).join('') + '</div>';
+  } else {
+    html += '<div class="empty" style="padding:10px">Todavía no tiene crías registradas.</div>';
+  }
+  if(!hayPadres && !hijos.length){
+    html += '<p class="field-hint" style="text-align:center;margin-top:14px">' +
+            'Para armar el árbol, edita el animal y escoge su madre y su padre.</p>';
+  }
+
+  const box = document.getElementById('modal-arbol');
+  box.innerHTML =
+    '<div class="modal-card" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Árbol de ' + esc(a.codigo || 'este animal') + '</h2>' +
+      '<button class="modal-x" onclick="cerrarArbol()">✕</button></div>' +
+      html +
+      '<p class="field-hint" style="text-align:center;margin-top:16px">Toca cualquier animal para ver su propio árbol.</p>' +
+    '</div>';
+  box.onclick = cerrarArbol;
+  box.classList.remove('hidden');
+}
+function cerrarArbol(){
+  const box = document.getElementById('modal-arbol');
+  if(box){ box.classList.add('hidden'); box.innerHTML = ''; }
+}
+
+/* ================= Recuperar contraseña ================= */
+function recMsg(txt, err){
+  const b = document.getElementById('rec-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+async function recuperarClave(){
+  const email = (val('rec-email')||'').trim().toLowerCase();
+  if(!email || email.indexOf('@') < 1){ recMsg('Escribe tu correo.', true); return; }
+  const btn = document.getElementById('rec-btn');
+  btn.disabled = true; recMsg('Enviando el enlace…');
+  const destino = location.origin + location.pathname.replace(/[^/]*$/, 'app.html');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: destino });
+  btn.disabled = false;
+  if(error){
+    recMsg('No se pudo enviar: ' + error.message + '. Pídele al dueño de la finca que te invite de nuevo.', true);
+    return;
+  }
+  recMsg('');
+  toast('✓ Revisa tu correo');
+  document.getElementById('rec-email').value = '';
+  alert('Te mandamos un enlace a ' + email + '.\n\nÁbrelo desde este mismo celular y podrás poner tu contraseña nueva. Si no llega en unos minutos, revisa la carpeta de spam.');
+  show('login');
+}
+
 /* ================= Chapeta y pesos =================
    El peso se guarda siempre en kilos. Si la finca trabaja en arrobas,
    solo cambia cómo se muestra y cómo se escribe (1 @ = 12,5 kg). */
@@ -2515,6 +2663,7 @@ function _openFicha(id, isBack){
       <div class="kv"><span class="k">Madre</span><span class="v">${gLink(madre,a.madre_id)}</span></div>
       <div class="kv"><span class="k">Padre</span><span class="v">${gLink(padre,a.padre_id)}</span></div>
     </div>
+    <button class="btn line" style="margin-top:10px" onclick="abrirArbol('${a.id}')">Ver árbol genealógico</button>
     <button class="btn line" style="margin-top:18px" onclick="openEditAnimal('${a.id}')">Editar animal (estado, lote, datos)</button>
     <button class="btn" style="margin-top:10px" onclick="prefillEvent('${a.id}')">Registrar evento a este animal</button>
     ${(!esHembra(a) && a.categoria_id==='novillo') ? `<button class="btn line" style="margin-top:10px" onclick="markToro('${a.id}')">Marcar como toro (reproductor)</button>` : ''}
@@ -2779,7 +2928,7 @@ function show(screen){
   // Admin sin finca seleccionada: sus pantallas de finca redirigen a la consola.
   if(STATE.isAdmin && !STATE.fincaId && ['inicio','animales','registrar','agenda','finca'].includes(screen)) screen='admin';
   if(screen!=='ficha'){ fichaStack=[]; STATE.currentFicha=null; }
-  ['config','login','invitacion','clave','registro','revision'].forEach(s=>document.getElementById('screen-'+s).classList.add('hidden'));
+  ['config','login','invitacion','clave','registro','revision','recuperar'].forEach(s=>document.getElementById('screen-'+s).classList.add('hidden'));
   document.getElementById('app-main').classList.add('hidden');
   if(screen==='config'){ document.getElementById('screen-config').classList.remove('hidden');
     if(CFG){document.getElementById('cfg-url').value=CFG.url;document.getElementById('cfg-key').value=CFG.key;} return; }
@@ -2788,6 +2937,7 @@ function show(screen){
   if(screen==='clave'){ document.getElementById('screen-clave').classList.remove('hidden'); return; }
   if(screen==='registro'){ document.getElementById('screen-registro').classList.remove('hidden'); return; }
   if(screen==='revision'){ document.getElementById('screen-revision').classList.remove('hidden'); return; }
+  if(screen==='recuperar'){ document.getElementById('screen-recuperar').classList.remove('hidden'); return; }
   document.getElementById('app-main').classList.remove('hidden');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));
   document.getElementById('view-'+screen).classList.remove('hidden');
