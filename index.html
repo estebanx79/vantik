@@ -375,7 +375,9 @@
       <div class="fg">
         <div><label for="f-nombre">Tu nombre *</label><input id="f-nombre" name="nombre" required placeholder="Nombre y apellido" autocomplete="name"></div>
         <div><label for="f-tel">WhatsApp *</label><input id="f-tel" name="telefono" required placeholder="300 123 4567" inputmode="tel" autocomplete="tel"></div>
-        <div><label for="f-email">Correo</label><input id="f-email" name="email" type="email" placeholder="tu@correo.com" autocomplete="email"></div>
+        <div><label for="f-email">Correo *</label><input id="f-email" name="email" type="email" required placeholder="tu@correo.com" autocomplete="email"></div>
+        <div><label for="f-pass">Crea tu contraseña *</label><input id="f-pass" name="pass" type="password" required placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+        <div><label for="f-pass2">Repite la contraseña *</label><input id="f-pass2" name="pass2" type="password" required placeholder="Escríbela otra vez" autocomplete="new-password"></div>
         <div><label for="f-finca">Nombre de la finca</label><input id="f-finca" name="finca" placeholder="La Esperanza"></div>
         <div><label for="f-ubic">Municipio / vereda</label><input id="f-ubic" name="ubicacion" placeholder="Montería, Córdoba"></div>
         <div><label for="f-cant">¿Cuántos animales tienes?</label>
@@ -391,8 +393,9 @@
         <div class="full"><label for="f-msg">¿Algo que quieras contarnos?</label>
           <textarea id="f-msg" name="mensaje" rows="3" placeholder="Cómo llevas hoy el control, qué te gustaría resolver…"></textarea></div>
       </div>
-      <button class="btn" type="submit" id="f-btn" style="width:100%;margin-top:18px">Enviar solicitud</button>
-      <p class="hint">Usamos tus datos solo para contactarte sobre Vantik. Puedes pedir que los borremos cuando quieras.
+      <button class="btn" type="submit" id="f-btn" style="width:100%;margin-top:18px">Crear mi cuenta y solicitar acceso</button>
+      <p class="hint">Con este correo y contraseña vas a entrar a la app apenas aprobemos tu acceso.
+        Usamos tus datos solo para contactarte sobre Vantik. Puedes pedir que los borremos cuando quieras.
         Consulta la <a href="privacidad.html">política de privacidad</a>.</p>
       <div class="msg" id="f-msg-box"></div>
     </form>
@@ -492,7 +495,12 @@ form.addEventListener('submit', async (ev)=>{
   ev.preventDefault();
   const nombre = form.nombre.value.trim();
   const telefono = form.telefono.value.trim();
+  const correo = form.email.value.trim().toLowerCase();
+  const p1 = form.pass.value, p2 = form.pass2.value;
   if(!nombre || !telefono){ aviso('Necesitamos tu nombre y tu WhatsApp para poder responderte.', false); return; }
+  if(!correo || correo.indexOf('@') < 1){ aviso('Escribe un correo válido: con él vas a entrar a la app.', false); return; }
+  if(!p1 || p1.length < 6){ aviso('La contraseña debe tener al menos 6 caracteres.', false); return; }
+  if(p1 !== p2){ aviso('Las dos contraseñas no coinciden.', false); return; }
 
   btn.disabled = true;
   const textoOriginal = btn.textContent;
@@ -501,7 +509,7 @@ form.addEventListener('submit', async (ev)=>{
   const fila = {
     nombre,
     telefono,
-    email: form.email.value.trim() || null,
+    email: correo,
     finca: form.finca.value.trim() || null,
     ubicacion: form.ubicacion.value.trim() || null,
     cantidad: form.cantidad.value || null,
@@ -511,10 +519,27 @@ form.addEventListener('submit', async (ev)=>{
 
   try{
     if(!sb) throw new Error('sin conexión');
+
+    // 1) Se crea la cuenta con SU contraseña (nosotros nunca la vemos)
+    const su = await sb.auth.signUp({ email: correo, password: p1 });
+    if(su.error){
+      const m = (su.error.message||'').toLowerCase();
+      if(m.includes('already')){
+        const li = await sb.auth.signInWithPassword({ email: correo, password: p1 });
+        if(li.error){
+          aviso('Ya existe una cuenta con ese correo. Entra desde "Ya tengo cuenta" o usa otro correo.', false);
+          btn.disabled = false; btn.textContent = textoOriginal; return;
+        }
+      } else { throw su.error; }
+    }
+    const { data: ses } = await sb.auth.getSession();
+    if(ses.session) fila.user_id = ses.session.user.id;
+
+    // 2) Se guarda la solicitud enlazada a esa cuenta
     const { error } = await sb.from('solicitudes').insert(fila);
     if(error) throw error;
     form.reset();
-    aviso('¡Listo! Recibimos tu solicitud. Te escribimos por WhatsApp muy pronto.', true);
+    aviso('¡Listo! Tu cuenta quedó creada y tu solicitud enviada. Apenas la aprobemos entras con tu correo y contraseña.', true);
   }catch(e){
     console.error(e);
     aviso('No pudimos enviar la solicitud. Revisa tu conexión e inténtalo de nuevo.', false);
