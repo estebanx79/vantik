@@ -163,6 +163,48 @@
   .chk-item.ok .m .t{color:var(--muted);text-decoration:line-through}
   .chk-go{color:var(--brand);font-size:19px;font-weight:700}
   .chk-item.ok .chk-go{opacity:0}
+  /* ---- Chapeta (marquilla de oreja) ---- */
+  .chapeta{width:172px;margin:2px auto 0;user-select:none}
+  .chapeta-pin{width:48px;height:32px;margin:0 auto -8px;border-radius:13px 13px 7px 7px;
+    background:linear-gradient(180deg,#5cd97a,#2fae52);position:relative;
+    box-shadow:0 2px 5px rgba(23,58,32,.28)}
+  .chapeta-pin i{position:absolute;left:50%;top:7px;transform:translateX(-50%);
+    width:22px;height:15px;border-radius:50%;background:#1c7a37;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
+  .chapeta-body{position:relative;border-radius:22px 22px 34px 34px;padding:22px 14px 26px;
+    background:linear-gradient(180deg,#5cdc7c 0%,#37c05c 55%,#29a54d 100%);
+    box-shadow:0 8px 20px rgba(23,58,32,.24),
+               inset 0 -5px 12px rgba(0,0,0,.10),
+               inset 0 3px 7px rgba(255,255,255,.38);
+    display:grid;place-items:center;min-height:118px}
+  .chapeta-body span{font-size:54px;font-weight:900;font-style:italic;line-height:1;
+    color:#173a20;letter-spacing:.005em;text-shadow:0 1px 0 rgba(255,255,255,.28);
+    text-align:center;word-break:break-word}
+  .chapeta.m .chapeta-body span{font-size:40px}
+  .chapeta.l .chapeta-body span{font-size:27px}
+  .ficha-head{display:flex;flex-direction:column;align-items:center;gap:12px;margin:6px 0 22px}
+  .ficha-head .sub2{color:var(--muted);font-size:13.5px;margin-top:7px;text-align:center}
+  /* ---- Peso ---- */
+  .peso-hero{display:flex;align-items:flex-end;gap:14px;padding:16px 16px 12px;flex-wrap:wrap}
+  .peso-hero .big{font-size:34px;font-weight:800;color:var(--brand);line-height:1}
+  .peso-hero .lab{color:var(--muted);font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+  .peso-hero .fec{color:var(--muted);font-size:13px;margin-top:3px}
+  .peso-gdp{margin-left:auto;text-align:right}
+  .peso-gdp .v{font-size:19px;font-weight:800;color:var(--brand)}
+  .peso-gdp .v.neg{color:var(--danger)}
+  .peso-form{border-top:1px solid var(--line);padding:14px 16px 16px}
+  .peso-row{display:flex;gap:10px}
+  .peso-row > div{flex:1}
+  .peso-hist{border-top:1px solid var(--line)}
+  .peso-hist .h{display:flex;justify-content:space-between;padding:10px 16px;font-size:13.5px;
+    border-bottom:1px solid var(--line)}
+  .peso-hist .h:last-child{border-bottom:none}
+  .peso-hist .h b{font-weight:700}
+  .peso-hist .h span{color:var(--muted)}
+  .unidad-sel{display:flex;gap:8px;padding:0 16px 14px}
+  .unidad-sel button{flex:1;padding:10px;border-radius:11px;border:1px solid var(--line);
+    background:#fff;color:var(--muted);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+  .unidad-sel button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .nav-dot{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;
     border-radius:99px;background:#b3261e;color:#fff;font-size:11px;font-weight:800}
   .spinner{width:30px;height:30px;border:3px solid var(--soft);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:36px auto}
@@ -367,7 +409,7 @@
         <div class="section-title">Acerca de</div>
         <div class="card" style="padding:14px">
           <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
-          <div class="kv"><span class="k">Versión</span><span class="v">1.8 · Personas</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">1.9 · Pesos</span></div>
           <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
         </div>
         <button class="btn line" style="margin-top:14px" onclick="mostrarChecklist()">Ver la guía de primeros pasos</button>
@@ -704,6 +746,7 @@ async function loadFincaData(){
   await loadAnimales();
   await autoSyncFases();
   await loadEventos();
+  await loadPesajes();
   document.getElementById('finca-name').textContent = STATE.fincaName||'—';
   updateAdminUI(); updateSoporteBtn();
   STATE.agenda = null;
@@ -1894,6 +1937,155 @@ function renderAgendaDash(){
     (T.length>prox.length ? `<div class="ag-row" style="justify-content:center;color:var(--brand);font-weight:700;font-size:13.5px" onclick="show('agenda')">Ver toda la agenda (${T.length})</div>` : '');
 }
 
+/* ================= Chapeta y pesos =================
+   El peso se guarda siempre en kilos. Si la finca trabaja en arrobas,
+   solo cambia cómo se muestra y cómo se escribe (1 @ = 12,5 kg). */
+const ARROBA = 12.5;
+
+function chapetaHTML(codigo){
+  const txt = String(codigo == null || codigo === '' ? '—' : codigo);
+  const cls = txt.length > 5 ? ' l' : (txt.length > 3 ? ' m' : '');
+  return '<div class="chapeta' + cls + '">' +
+           '<div class="chapeta-pin"><i></i></div>' +
+           '<div class="chapeta-body"><span>' + esc(txt) + '</span></div>' +
+         '</div>';
+}
+
+function unidadPeso(){
+  if(STATE.unidadPeso) return STATE.unidadPeso;
+  try{ return localStorage.getItem('vantik_unidad_' + STATE.fincaId) || ''; }catch(e){ return ''; }
+}
+function guardarUnidad(u){
+  STATE.unidadPeso = u;
+  try{ localStorage.setItem('vantik_unidad_' + STATE.fincaId, u); }catch(e){}
+  if(STATE.currentFicha) _openFicha(STATE.currentFicha, true);
+  toast(u === 'arroba' ? 'Pesos en arrobas' : 'Pesos en kilos');
+}
+function pesoTxt(kg){
+  if(kg == null) return '—';
+  if(unidadPeso() === 'arroba') return (kg / ARROBA).toFixed(1).replace('.', ',') + ' @';
+  return (Math.round(kg * 10) / 10).toString().replace('.', ',') + ' kg';
+}
+function aKilos(v){
+  const n = parseFloat(String(v).replace(',', '.'));
+  if(isNaN(n) || n <= 0) return null;
+  return unidadPeso() === 'arroba' ? n * ARROBA : n;
+}
+function hoyISO(){
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0');
+}
+
+async function loadPesajes(){
+  STATE.pesajes = [];
+  STATE.pesajesOk = false;
+  if(!STATE.fincaId) return;
+  const { data, error } = await sb.from('pesajes')
+    .select('id,animal_id,fecha,peso_kg')
+    .eq('finca_id', STATE.fincaId)
+    .order('fecha', { ascending: true });
+  if(error) return;
+  STATE.pesajesOk = true;
+  STATE.pesajes = data || [];
+}
+function pesajesDe(animalId){
+  return (STATE.pesajes || []).filter(p => p.animal_id === animalId);
+}
+
+function fichaPeso(a){
+  if(!STATE.pesajesOk){
+    return '<div class="section-title">Peso</div>' +
+      '<div class="card" style="padding:16px"><div class="empty" style="padding:6px">' +
+      'Falta crear la tabla <b>pesajes</b> en la base de datos. Corre el script <b>pesos.sql</b> y recarga.' +
+      '</div></div>';
+  }
+  const u = unidadPeso();
+  if(!u){
+    return '<div class="section-title">Peso</div>' +
+      '<div class="card" style="padding:16px 0 0">' +
+        '<p class="field-hint" style="padding:0 16px 12px;margin:0">¿En qué unidad pesas los animales de esta finca?</p>' +
+        '<div class="unidad-sel">' +
+          '<button onclick="guardarUnidad(\'kg\')">Kilos (kg)</button>' +
+          '<button onclick="guardarUnidad(\'arroba\')">Arrobas (@)</button>' +
+        '</div></div>';
+  }
+
+  const P = pesajesDe(a.id);
+  const ult = P.length ? P[P.length-1] : null;
+  const pen = P.length > 1 ? P[P.length-2] : null;
+
+  let hero;
+  if(ult){
+    let gdp = '';
+    if(pen){
+      const dias = Math.max(1, Math.round((new Date(ult.fecha) - new Date(pen.fecha)) / 86400000));
+      const g = (ult.peso_kg - pen.peso_kg) / dias;
+      const gTxt = (g >= 0 ? '+' : '') + (Math.round(g*1000)/1000).toFixed(3).replace('.', ',');
+      gdp = '<div class="peso-gdp"><div class="lab">Ganancia diaria</div>' +
+            '<div class="v' + (g < 0 ? ' neg' : '') + '">' + gTxt + ' kg/día</div>' +
+            '<div class="fec">en ' + dias + ' día' + (dias===1?'':'s') + '</div></div>';
+    }
+    hero = '<div class="peso-hero">' +
+             '<div><div class="lab">Peso anterior</div>' +
+             '<div class="big">' + esc(pesoTxt(ult.peso_kg)) + '</div>' +
+             '<div class="fec">' + esc(expFecha(ult.fecha)) + '</div></div>' +
+             gdp +
+           '</div>';
+  } else {
+    hero = '<div class="peso-hero"><div><div class="lab">Peso anterior</div>' +
+           '<div class="big" style="color:var(--muted)">Sin registro</div>' +
+           '<div class="fec">Este sería su primer pesaje</div></div></div>';
+  }
+
+  const unidadLab = u === 'arroba' ? 'arrobas (@)' : 'kilos (kg)';
+  const form = '<div class="peso-form">' +
+      '<div class="peso-row">' +
+        '<div><label>Peso nuevo en ' + unidadLab + '</label>' +
+        '<input id="pw-valor" type="number" inputmode="decimal" step="0.1" min="1" placeholder="Ej: ' + (u==='arroba'?'26':'325') + '"></div>' +
+        '<div><label>Fecha</label><input id="pw-fecha" type="date" value="' + hoyISO() + '"></div>' +
+      '</div>' +
+      '<button class="btn" style="margin-top:12px" id="pw-btn" onclick="guardarPeso(\'' + a.id + '\')">Guardar peso</button>' +
+      '<div id="pw-msg" class="exp-status hidden"></div>' +
+    '</div>';
+
+  let hist = '';
+  if(P.length){
+    const ultimos = P.slice(-6).reverse();
+    hist = '<div class="peso-hist">' + ultimos.map(function(p){
+      return '<div class="h"><b>' + esc(pesoTxt(p.peso_kg)) + '</b><span>' + esc(expFecha(p.fecha)) + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  return '<div class="section-title">Peso</div><div class="card" style="overflow:hidden">' + hero + form + hist + '</div>';
+}
+
+function pwMsg(txt, err){
+  const b = document.getElementById('pw-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+
+async function guardarPeso(animalId){
+  const kg = aKilos(val('pw-valor'));
+  const fecha = val('pw-fecha') || hoyISO();
+  if(kg == null){ pwMsg('Escribe un peso válido.', true); return; }
+  if(kg > 2000){ pwMsg('Ese peso parece muy alto. Revísalo.', true); return; }
+  const btn = document.getElementById('pw-btn');
+  btn.disabled = true; pwMsg('Guardando…');
+  const { error } = await sb.from('pesajes').insert({
+    animal_id: animalId, finca_id: STATE.fincaId, fecha: fecha, peso_kg: kg
+  });
+  btn.disabled = false;
+  if(error){ pwMsg('Error: ' + error.message, true); return; }
+  pwMsg('');
+  toast('✓ Peso guardado: ' + pesoTxt(kg));
+  await loadPesajes();
+  _openFicha(animalId, true);
+}
+
 /* Bloque de tareas proyectadas dentro de la ficha del animal */
 function fichaAgenda(a){
   const T=(STATE.agenda && STATE.agenda.length ? STATE.agenda : construirAgenda());
@@ -2135,10 +2327,12 @@ function _openFicha(id, isBack){
   const gLink=(rel,rid)=> rel ? `<a onclick="openFicha('${rel.id}')" style="color:var(--brand);cursor:pointer;text-decoration:underline;font-weight:700">${esc(rel.codigo)} ›</a>` : (rid?'#'+rid:'—');
   const body=document.getElementById('ficha-body');
   body.innerHTML=`
-    <div style="display:flex;align-items:center;gap:14px;margin:6px 0 16px">
-      <div class="avatar" style="width:58px;height:58px;font-size:20px">${esc((a.codigo||'?').toString().slice(0,3))}</div>
-      <div><div style="font-size:22px;font-weight:800">${esc(a.codigo||'Sin código')}</div>
-      <span class="badge ${badgeClass(code)}">${esc(estadoOf(a))}</span></div>
+    <div class="ficha-head">
+      ${chapetaHTML(a.codigo)}
+      <div>
+        <div style="text-align:center"><span class="badge ${badgeClass(code)}">${esc(estadoOf(a))}</span></div>
+        <div class="sub2">${esc([a.raza, catOf(a), loteOf(a)].filter(Boolean).join(' · '))}</div>
+      </div>
     </div>
     <div class="card" style="padding:4px 16px">
       <div class="kv"><span class="k">ID electrónico</span><span class="v">${esc(a.id_electronico||'—')}</span></div>
@@ -2149,6 +2343,7 @@ function _openFicha(id, isBack){
       <div class="kv"><span class="k">Edad</span><span class="v">${esc(edadTexto(a))}</span></div>
       <div class="kv"><span class="k">Lote</span><span class="v">${esc(loteOf(a)||'—')}</span></div>
     </div>
+    ${fichaPeso(a)}
     ${fichaAgenda(a)}
     <div class="section-title">Genealogía</div>
     <div class="card" style="padding:4px 16px">
