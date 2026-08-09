@@ -194,7 +194,10 @@
   .peso-gdp .v.neg{color:var(--danger)}
   .peso-form{border-top:1px solid var(--line);padding:14px 16px 16px}
   .peso-row{display:flex;gap:10px}
-  .peso-row > div{flex:1}
+  .peso-row > div{flex:1;min-width:0}
+  .peso-row label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .peso-row input{width:100%}
+  @media(max-width:520px){ .peso-row{flex-direction:column;gap:2px} }
   .peso-hist{border-top:1px solid var(--line)}
   .peso-hist .h{display:flex;justify-content:space-between;padding:10px 16px;font-size:13.5px;
     border-bottom:1px solid var(--line)}
@@ -299,8 +302,11 @@
     <label>Contraseña</label>
     <input id="log-pass" type="password" placeholder="••••••••">
     <button class="btn" style="margin-top:18px" onclick="doLogin()">Entrar</button>
-    <button class="btn line" style="margin-top:10px" onclick="show('invitacion')">Tengo un código de invitación</button>
-    <p class="field-hint" style="text-align:center;margin-top:14px">¿No tienes cuenta? Pídele acceso al dueño de la finca.</p>
+    <button class="btn line" style="margin-top:10px" onclick="show('registro')">Crear mi cuenta</button>
+    <button class="btn ghost" style="margin-top:10px" onclick="show('invitacion')">Tengo un código de invitación</button>
+    <p class="field-hint" style="text-align:center;margin-top:16px">
+      <a href="index.html" style="color:var(--brand);font-weight:700;text-decoration:none">← Conocer Vantik</a>
+    </p>
     <button class="back" style="margin-top:8px;justify-content:center" onclick="show('config')">Cambiar proyecto Supabase</button>
   </section>
 
@@ -321,7 +327,51 @@
     <button class="back" style="margin-top:12px;justify-content:center" onclick="show('login')">← Ya tengo cuenta</button>
   </section>
 
-  <section id="screen-clave" class="centered hidden">
+    <!-- ============ CREAR CUENTA (solicitud de acceso) ============ -->
+  <section id="screen-registro" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Crear mi cuenta</h1>
+    <p class="lead">Cuéntanos de tu finca y elige tu contraseña. Revisamos tu solicitud y te activamos el acceso.</p>
+    <label>Tu nombre *</label>
+    <input id="rg-nombre" placeholder="Nombre y apellido" autocomplete="name">
+    <label>WhatsApp *</label>
+    <input id="rg-tel" placeholder="300 123 4567" inputmode="tel" autocomplete="tel">
+    <label>Correo *</label>
+    <input id="rg-email" type="email" placeholder="tu@correo.com" autocapitalize="off" autocomplete="email">
+    <label>Crea tu contraseña *</label>
+    <input id="rg-pass" type="password" placeholder="Mínimo 6 caracteres">
+    <label>Repite la contraseña *</label>
+    <input id="rg-pass2" type="password" placeholder="Escríbela otra vez">
+    <label>Nombre de la finca</label>
+    <input id="rg-finca" placeholder="La Esperanza">
+    <label>Municipio / vereda</label>
+    <input id="rg-ubic" placeholder="Montería, Córdoba">
+    <label>¿Cuántos animales tienes?</label>
+    <select id="rg-cant">
+      <option value="">Selecciona…</option>
+      <option>Menos de 50</option><option>50 a 150</option><option>150 a 400</option>
+      <option>400 a 1000</option><option>Más de 1000</option>
+    </select>
+    <button class="btn" style="margin-top:18px" id="rg-btn" onclick="crearCuenta()">Crear cuenta y solicitar acceso</button>
+    <div id="rg-msg" class="exp-status hidden" style="margin-top:14px"></div>
+    <p class="field-hint" style="text-align:center;margin-top:12px">Al continuar aceptas los
+      <a href="terminos.html" style="color:var(--brand)">términos</a> y la
+      <a href="privacidad.html" style="color:var(--brand)">política de privacidad</a>.</p>
+    <button class="back" style="margin-top:10px;justify-content:center" onclick="show('login')">← Ya tengo cuenta</button>
+  </section>
+
+  <!-- ============ SOLICITUD EN REVISIÓN ============ -->
+  <section id="screen-revision" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl" id="rev-titulo">Tu solicitud está en revisión</h1>
+    <p class="lead" id="rev-texto">Ya recibimos tus datos. Te activamos el acceso muy pronto y te avisamos.</p>
+    <div class="card" id="rev-datos" style="padding:4px 16px;margin-top:6px"></div>
+    <button class="btn" style="margin-top:18px" onclick="revisarEstado()">Ya me aprobaron, entrar</button>
+    <a class="btn line" style="margin-top:10px;text-decoration:none" href="index.html">Conocer Vantik</a>
+    <button class="back" style="margin-top:12px;justify-content:center" onclick="doLogout()">Cerrar sesión</button>
+  </section>
+
+<section id="screen-clave" class="centered hidden">
     <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
     <h1 class="title-xl">Crea tu contraseña</h1>
     <p class="lead" id="clave-sub">Ya tienes acceso a la finca. Define una contraseña para entrar de ahora en adelante.</p>
@@ -409,7 +459,7 @@
         <div class="section-title">Acerca de</div>
         <div class="card" style="padding:14px">
           <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
-          <div class="kv"><span class="k">Versión</span><span class="v">1.9 · Pesos</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">2.0 · Registro</span></div>
           <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
         </div>
         <button class="btn line" style="margin-top:14px" onclick="mostrarChecklist()">Ver la guía de primeros pasos</button>
@@ -700,6 +750,7 @@ async function enterApp(){
   updateAdminUI();
   if(STATE.isAdmin){ await loadAdminFincas(); show('admin'); return; }
   await loadFinca();
+  if(!STATE.fincaId){ await mostrarRevision(); return; }
   await loadFincaData();
   show('inicio');
 }
@@ -1937,6 +1988,120 @@ function renderAgendaDash(){
     (T.length>prox.length ? `<div class="ag-row" style="justify-content:center;color:var(--brand);font-weight:700;font-size:13.5px" onclick="show('agenda')">Ver toda la agenda (${T.length})</div>` : '');
 }
 
+/* ================= Crear cuenta y solicitud de acceso ================= */
+function rgMsg(txt, err){
+  const b = document.getElementById('rg-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+
+async function crearCuenta(){
+  const nombre = (val('rg-nombre')||'').trim();
+  const tel    = (val('rg-tel')||'').trim();
+  const email  = (val('rg-email')||'').trim().toLowerCase();
+  const p1     = val('rg-pass'), p2 = val('rg-pass2');
+  if(!nombre){ rgMsg('Escribe tu nombre.', true); return; }
+  if(!tel){ rgMsg('Necesitamos tu WhatsApp para contactarte.', true); return; }
+  if(!email || email.indexOf('@') < 1){ rgMsg('Escribe un correo válido.', true); return; }
+  if(!p1 || p1.length < 6){ rgMsg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+  if(p1 !== p2){ rgMsg('Las dos contraseñas no coinciden.', true); return; }
+
+  const btn = document.getElementById('rg-btn');
+  btn.disabled = true; rgMsg('Creando tu cuenta…');
+
+  const su = await sb.auth.signUp({ email: email, password: p1 });
+  if(su.error){
+    const m = (su.error.message||'').toLowerCase();
+    if(m.includes('already')){
+      const li = await sb.auth.signInWithPassword({ email: email, password: p1 });
+      if(li.error){
+        rgMsg('Ya existe una cuenta con ese correo. Entra desde "Ya tengo cuenta".', true);
+        btn.disabled = false; return;
+      }
+    } else {
+      rgMsg('Error: ' + su.error.message, true); btn.disabled = false; return;
+    }
+  }
+
+  const { data: ses } = await sb.auth.getSession();
+  if(!ses.session){
+    rgMsg('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve a entrar.', true);
+    btn.disabled = false; return;
+  }
+  STATE.user = ses.session.user;
+
+  rgMsg('Enviando tu solicitud…');
+  const { error } = await sb.from('solicitudes').insert({
+    nombre: nombre,
+    telefono: tel,
+    email: email,
+    finca: (val('rg-finca')||'').trim() || null,
+    ubicacion: (val('rg-ubic')||'').trim() || null,
+    cantidad: val('rg-cant') || null,
+    origen: 'app',
+    user_id: ses.session.user.id
+  });
+  btn.disabled = false;
+  if(error){ rgMsg('Error al enviar la solicitud: ' + error.message, true); return; }
+  rgMsg('');
+  toast('✓ Solicitud enviada');
+  await enterApp();
+}
+
+/* Pantalla de espera mientras se aprueba la cuenta */
+async function mostrarRevision(){
+  hideBoot();
+  let s = null;
+  try{
+    const { data } = await sb.from('solicitudes').select('*')
+      .eq('user_id', STATE.user.id).order('creado_en', { ascending: false }).limit(1);
+    s = (data||[])[0] || null;
+  }catch(e){}
+  STATE.miSolicitud = s;
+
+  const tit = document.getElementById('rev-titulo');
+  const txt = document.getElementById('rev-texto');
+  const box = document.getElementById('rev-datos');
+
+  if(!s){
+    tit.textContent = 'Tu cuenta aún no tiene finca';
+    txt.textContent = 'Pídele al dueño de la finca que te invite, o solicita tu propio acceso desde la página de inicio.';
+    box.innerHTML = '<div class="kv"><span class="k">Tu correo</span><span class="v">' + esc(STATE.user?.email||'—') + '</span></div>';
+    return show('revision');
+  }
+  if(s.estado === 'descartada'){
+    tit.textContent = 'Tu solicitud no fue aprobada';
+    txt.textContent = 'Si crees que fue un error, escríbenos y lo revisamos.';
+  } else {
+    tit.textContent = 'Tu solicitud está en revisión';
+    txt.textContent = 'Ya recibimos tus datos. Te activamos el acceso muy pronto y te avisamos por WhatsApp.';
+  }
+  const f = new Date(s.creado_en);
+  box.innerHTML =
+    '<div class="kv"><span class="k">Nombre</span><span class="v">' + esc(s.nombre||'—') + '</span></div>' +
+    '<div class="kv"><span class="k">Finca</span><span class="v">' + esc(s.finca||'—') + '</span></div>' +
+    '<div class="kv"><span class="k">Correo</span><span class="v">' + esc(s.email||STATE.user?.email||'—') + '</span></div>' +
+    '<div class="kv"><span class="k">Enviada</span><span class="v">' + esc(isNaN(f)?'—':f.toLocaleDateString('es-CO',{day:'2-digit',month:'long'})) + '</span></div>' +
+    '<div class="kv"><span class="k">Estado</span><span class="v">' + esc(cap(s.estado||'nueva')) + '</span></div>';
+  show('revision');
+}
+
+async function revisarEstado(){
+  toast('Revisando…');
+  await loadFinca();
+  if(STATE.fincaId){
+    await loadFincaData();
+    toast('✓ ¡Ya tienes acceso!');
+    show('inicio');
+    return;
+  }
+  await mostrarRevision();
+  toast('Todavía no está aprobada');
+}
+
 /* ================= Chapeta y pesos =================
    El peso se guarda siempre en kilos. Si la finca trabaja en arrobas,
    solo cambia cómo se muestra y cómo se escribe (1 @ = 12,5 kg). */
@@ -2614,13 +2779,15 @@ function show(screen){
   // Admin sin finca seleccionada: sus pantallas de finca redirigen a la consola.
   if(STATE.isAdmin && !STATE.fincaId && ['inicio','animales','registrar','agenda','finca'].includes(screen)) screen='admin';
   if(screen!=='ficha'){ fichaStack=[]; STATE.currentFicha=null; }
-  ['config','login','invitacion','clave'].forEach(s=>document.getElementById('screen-'+s).classList.add('hidden'));
+  ['config','login','invitacion','clave','registro','revision'].forEach(s=>document.getElementById('screen-'+s).classList.add('hidden'));
   document.getElementById('app-main').classList.add('hidden');
   if(screen==='config'){ document.getElementById('screen-config').classList.remove('hidden');
     if(CFG){document.getElementById('cfg-url').value=CFG.url;document.getElementById('cfg-key').value=CFG.key;} return; }
   if(screen==='login'){ document.getElementById('screen-login').classList.remove('hidden'); return; }
   if(screen==='invitacion'){ document.getElementById('screen-invitacion').classList.remove('hidden'); return; }
   if(screen==='clave'){ document.getElementById('screen-clave').classList.remove('hidden'); return; }
+  if(screen==='registro'){ document.getElementById('screen-registro').classList.remove('hidden'); return; }
+  if(screen==='revision'){ document.getElementById('screen-revision').classList.remove('hidden'); return; }
   document.getElementById('app-main').classList.remove('hidden');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));
   document.getElementById('view-'+screen).classList.remove('hidden');
