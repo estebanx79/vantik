@@ -471,12 +471,44 @@
 
     <!-- REGISTRAR EVENTO -->
     <section id="view-registrar" class="view hidden">
-      <div class="topbar"><div><h1>Registrar evento</h1><div class="sub">Reproductivo / productivo</div></div></div>
+      <div class="topbar"><div><h1>Registrar</h1><div class="sub" id="reg-sub">Reproducción y sanidad</div></div></div>
       <div class="content">
+        <div class="chips" style="margin-bottom:14px">
+          <button class="chip active" id="tab-repro" onclick="setRegistro('repro')">Reproducción</button>
+          <button class="chip" id="tab-sanidad" onclick="setRegistro('sanidad')">Sanidad</button>
+        </div>
+        <div id="bloque-sanidad" class="hidden">
+          <div id="san-banner" class="banner hidden">Falta crear la tabla <b>sanidad</b>. Corre el script y recarga.</div>
+          <label>Animal</label>
+          <select id="sa-animal"></select>
+          <label>Tipo</label>
+          <select id="sa-tipo" onchange="renderSanidadCampos()">
+            <option value="vacuna">Vacunación</option>
+            <option value="desparasitacion">Desparasitación</option>
+            <option value="vitaminas">Vitaminas / minerales</option>
+            <option value="tratamiento">Tratamiento (antibiótico u otro)</option>
+            <option value="revision">Revisión veterinaria</option>
+          </select>
+          <label>Producto</label>
+          <input id="sa-producto" placeholder="Ej: Aftosa, Ivermectina 1%">
+          <label>Fecha</label>
+          <input id="sa-fecha" type="date">
+          <div id="sa-extra"></div>
+          <label>Observaciones</label>
+          <textarea id="sa-obs" rows="2" placeholder="Opcional"></textarea>
+          <button class="btn" style="margin-top:16px" id="btn-sa" onclick="guardarSanidad()">Guardar en sanidad</button>
+          <div id="sa-msg" class="exp-status hidden"></div>
+        </div>
+        <div id="bloque-repro">
         <div id="ev-banner" class="banner hidden">La tabla <b>eventos_reproductivos</b> no existe aún. Corre el script SQL que te entregué para activar el guardado.</div>
         <label>Animal</label>
         <select id="ev-animal" onchange="onEventAnimalChange()"></select>
-        <div id="ev-noapt" class="banner hidden" style="margin-top:12px">Los eventos reproductivos solo aplican a <b>hembras aptas</b> (novilla en edad de entorar o vaca). Este animal no registra estos eventos.</div>
+        <div id="ev-noapt" class="banner hidden" style="margin-top:12px">
+          Los eventos reproductivos solo aplican a <b>hembras aptas</b> (novilla en edad de entorar o vaca).
+          A este animal sí puedes registrarle sanidad o peso.
+          <button class="btn ghost" style="margin-top:10px" onclick="setRegistro('sanidad')">Registrar sanidad</button>
+          <button class="btn line" style="margin-top:8px" onclick="irAFichaDelEvento()">Ver su ficha y pesarlo</button>
+        </div>
         <label>Tipo de evento</label>
         <select id="ev-tipo" onchange="renderEventFields()">
           <option value="servicio">Servicio / IATF</option>
@@ -491,6 +523,7 @@
         <label>Observaciones</label>
         <textarea id="ev-obs" rows="2" placeholder="Opcional"></textarea>
         <button id="btn-ev" class="btn" style="margin-top:18px" onclick="saveEvent()">Guardar evento</button>
+        </div>
       </div>
     </section>
 
@@ -504,7 +537,7 @@
         <div class="section-title">Acerca de</div>
         <div class="card" style="padding:14px">
           <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
-          <div class="kv"><span class="k">Versión</span><span class="v">2.1 · Genealogía</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">2.2 · Sanidad</span></div>
           <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
         </div>
         <button class="btn line" style="margin-top:14px" onclick="mostrarChecklist()">Ver la guía de primeros pasos</button>
@@ -656,6 +689,11 @@
         <select id="f-madre"></select>
         <label>Padre</label>
         <select id="f-padre"></select>
+        <div id="f-peso-box">
+          <label id="f-peso-lab">Peso actual (opcional)</label>
+          <input id="f-peso" type="number" inputmode="decimal" step="0.1" min="1" placeholder="Ej: 325">
+          <p class="field-hint">Si lo escribes, queda como su primer pesaje de hoy.</p>
+        </div>
         <button class="btn" style="margin-top:18px" onclick="saveAnimal()">Guardar</button>
         <button id="btn-baja" class="btn danger hidden" style="margin-top:10px" onclick="bajaAnimal()">Dar de baja / eliminar (venta o muerte)</button>
       </div>
@@ -851,6 +889,7 @@ async function loadFincaData(){
   await autoSyncFases();
   await loadEventos();
   await loadPesajes();
+  await loadSanidad();
   document.getElementById('finca-name').textContent = STATE.fincaName||'—';
   updateAdminUI(); updateSoporteBtn();
   STATE.agenda = null;
@@ -1956,6 +1995,33 @@ function construirAgenda(){
     }
   });
 
+  /* ---- Sanidad: próximas dosis y fin de periodos de retiro ---- */
+  const _porId = {};
+  STATE.animales.forEach(function(a){ _porId[a.id] = a; });
+  (STATE.sanidad||[]).forEach(function(s){
+    const a = _porId[s.animal_id];
+    if(!a) return;
+    const info = (typeof SAN_TIPOS !== 'undefined' && SAN_TIPOS[s.tipo]) || { t: s.tipo };
+    if(s.proxima_fecha){
+      const f = agSumar(s.proxima_fecha, 0);
+      if(f){ const d = agDias(f);
+        if(d >= -120) tareas.push({ animal:a, clave:'sanidad', fecha:f, dias:d, urg:agUrgencia(d),
+          titulo: info.t + (s.producto ? ' — ' + s.producto : ''), detalle:'Toca la próxima dosis' }); }
+    }
+    if(s.retiro_leche_dias){
+      const f = agSumar(s.fecha, s.retiro_leche_dias);
+      if(f){ const d = agDias(f);
+        if(d >= -30 && d <= 120) tareas.push({ animal:a, clave:'retiro', fecha:f, dias:d, urg:agUrgencia(d),
+          titulo:'Se libera la leche', detalle:'Fin del retiro por ' + (s.producto||'tratamiento') }); }
+    }
+    if(s.retiro_carne_dias){
+      const f = agSumar(s.fecha, s.retiro_carne_dias);
+      if(f){ const d = agDias(f);
+        if(d >= -30 && d <= 120) tareas.push({ animal:a, clave:'retiro', fecha:f, dias:d, urg:agUrgencia(d),
+          titulo:'Se libera la carne', detalle:'Fin del retiro por ' + (s.producto||'tratamiento') }); }
+    }
+  });
+
   tareas.sort((x,y)=> x.fecha - y.fecha || String(x.animal.codigo||'').localeCompare(String(y.animal.codigo||''),'es',{numeric:true}));
   return tareas;
 }
@@ -2250,6 +2316,165 @@ async function recuperarClave(){
   show('login');
 }
 
+/* ================= Sanidad: vacunas, desparasitación, tratamientos ================= */
+const SAN_TIPOS = {
+  vacuna:          { t:'Vacunación',            icono:'💉', repite:365 },
+  desparasitacion: { t:'Desparasitación',       icono:'🌿', repite:120 },
+  vitaminas:       { t:'Vitaminas / minerales', icono:'🧪', repite:180 },
+  tratamiento:     { t:'Tratamiento',           icono:'🩺', repite:0 },
+  revision:        { t:'Revisión veterinaria',  icono:'🔍', repite:0 }
+};
+
+function setRegistro(cual){
+  const repro = document.getElementById('bloque-repro');
+  const san   = document.getElementById('bloque-sanidad');
+  const tr = document.getElementById('tab-repro'), ts = document.getElementById('tab-sanidad');
+  if(!repro || !san) return;
+  const esSan = cual === 'sanidad';
+  repro.classList.toggle('hidden', esSan);
+  san.classList.toggle('hidden', !esSan);
+  tr.classList.toggle('active', !esSan);
+  ts.classList.toggle('active', esSan);
+  document.getElementById('reg-sub').textContent = esSan
+    ? 'Vacunas, desparasitación y tratamientos'
+    : 'Servicios, palpaciones y partos';
+  if(esSan){
+    llenarSanidadSelect();
+    document.getElementById('san-banner').classList.toggle('hidden', !!STATE.sanidadOk);
+    const f = document.getElementById('sa-fecha');
+    if(!f.value) f.value = hoyISO();
+    renderSanidadCampos();
+  }
+  window.scrollTo(0,0);
+}
+
+function llenarSanidadSelect(){
+  const sel = document.getElementById('sa-animal');
+  if(!sel) return;
+  const previo = sel.value;
+  const A = (STATE.animales||[]).slice().sort(function(x,y){
+    return String(x.codigo||'').localeCompare(String(y.codigo||''),'es',{numeric:true});
+  });
+  sel.innerHTML = A.map(function(a){
+    return '<option value="'+a.id+'">'+esc(a.codigo||'—')+(a.raza?' · '+esc(a.raza):'')+'</option>';
+  }).join('');
+  if(previo) sel.value = previo;
+}
+
+function sumarDiasISO(iso, dias){
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));
+  if(!m) return hoyISO();
+  const d = new Date(+m[1], +m[2]-1, +m[3]);
+  d.setDate(d.getDate() + dias);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function renderSanidadCampos(){
+  const tipo = val('sa-tipo');
+  const box = document.getElementById('sa-extra');
+  if(!box) return;
+  const rep = (SAN_TIPOS[tipo]||{}).repite || 0;
+  let html = '';
+  if(rep){
+    html += '<label>Próxima aplicación</label>' +
+            '<input id="sa-proxima" type="date" value="' + sumarDiasISO(val('sa-fecha')||hoyISO(), rep) + '">' +
+            '<p class="field-hint">Se agrega sola a la agenda. Puedes cambiar la fecha.</p>';
+  }
+  if(tipo === 'tratamiento'){
+    html += '<div class="peso-row" style="margin-top:12px">' +
+            '<div><label>Retiro leche (días)</label><input id="sa-rleche" type="number" min="0" step="1" placeholder="0"></div>' +
+            '<div><label>Retiro carne (días)</label><input id="sa-rcarne" type="number" min="0" step="1" placeholder="0"></div>' +
+            '</div><p class="field-hint">Días en que la leche o la carne no se pueden vender. Vantik te avisa cuándo se libera.</p>';
+  }
+  box.innerHTML = html;
+}
+
+async function loadSanidad(){
+  STATE.sanidad = []; STATE.sanidadOk = false;
+  if(!STATE.fincaId) return;
+  const { data, error } = await sb.from('sanidad')
+    .select('id,animal_id,tipo,producto,fecha,proxima_fecha,retiro_leche_dias,retiro_carne_dias,observaciones')
+    .eq('finca_id', STATE.fincaId).order('fecha', { ascending: true });
+  if(error) return;
+  STATE.sanidadOk = true; STATE.sanidad = data || [];
+}
+function sanidadDe(animalId){
+  return (STATE.sanidad||[]).filter(function(s){ return s.animal_id === animalId; });
+}
+function saMsg(txt, err){
+  const b = document.getElementById('sa-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+
+async function guardarSanidad(){
+  const animal_id = val('sa-animal');
+  const tipo = val('sa-tipo');
+  const producto = (val('sa-producto')||'').trim();
+  const fecha = val('sa-fecha') || hoyISO();
+  if(!animal_id){ saMsg('Escoge el animal.', true); return; }
+  if(!producto){ saMsg('Escribe qué producto le aplicaste.', true); return; }
+  const fila = { animal_id:animal_id, finca_id:STATE.fincaId, tipo:tipo, producto:producto,
+                 fecha:fecha, observaciones:(val('sa-obs')||'').trim() || null };
+  const prox = val('sa-proxima'); if(prox) fila.proxima_fecha = prox;
+  const rl = val('sa-rleche'), rc = val('sa-rcarne');
+  if(rl) fila.retiro_leche_dias = +rl;
+  if(rc) fila.retiro_carne_dias = +rc;
+  const btn = document.getElementById('btn-sa');
+  btn.disabled = true; saMsg('Guardando…');
+  const { error } = await sb.from('sanidad').insert(fila);
+  btn.disabled = false;
+  if(error){
+    if(/relation|does not exist|not find/i.test(error.message||'')){
+      document.getElementById('san-banner').classList.remove('hidden');
+      saMsg('Falta crear la tabla sanidad en la base de datos.', true);
+    } else saMsg('Error: ' + error.message, true);
+    return;
+  }
+  saMsg('');
+  const a = (STATE.animales||[]).find(function(x){ return x.id === animal_id; });
+  toast('✓ ' + ((SAN_TIPOS[tipo]||{}).t || 'Registro') + ' guardada en ' + (a ? a.codigo : 'el animal'));
+  document.getElementById('sa-producto').value = '';
+  document.getElementById('sa-obs').value = '';
+  await refreshData();
+  setRegistro('sanidad');
+}
+
+function fichaSanidad(a){
+  if(!STATE.sanidadOk) return '';
+  const S = sanidadDe(a.id).slice().reverse();
+  if(!S.length){
+    return '<div class="section-title">Sanidad</div>' +
+      '<div class="card" style="padding:16px"><div class="empty" style="padding:6px">Sin registros todavía.</div>' +
+      '<button class="btn line" style="margin-top:12px" onclick="registrarSanidadA(\'' + a.id + '\')">Registrar vacuna o tratamiento</button></div>';
+  }
+  const filas = S.slice(0,6).map(function(s){
+    const info = SAN_TIPOS[s.tipo] || { t:s.tipo, icono:'•' };
+    let extra = expFecha(s.fecha);
+    if(s.proxima_fecha){
+      const d = Math.ceil((new Date(s.proxima_fecha) - agHoy())/86400000);
+      extra += ' · próxima ' + (d < 0 ? 'vencida' : 'en ' + d + ' d');
+    }
+    return '<div class="row" style="cursor:default"><div class="avatar">' + info.icono + '</div>' +
+      '<div class="main"><div class="t">' + esc(s.producto || info.t) + '</div>' +
+      '<div class="s">' + esc(info.t) + ' · ' + esc(extra) + '</div></div></div>';
+  }).join('');
+  return '<div class="section-title">Sanidad</div><div class="card" style="overflow:hidden">' + filas +
+    '<div class="row" style="justify-content:center;color:var(--brand);font-weight:700;font-size:13.5px" onclick="registrarSanidadA(\'' + a.id + '\')">+ Registrar otra</div></div>';
+}
+function registrarSanidadA(id){
+  show('registrar'); setRegistro('sanidad');
+  const sel = document.getElementById('sa-animal');
+  if(sel) sel.value = id;
+}
+function irAFichaDelEvento(){
+  const id = val('ev-animal');
+  if(id) openFicha(id);
+}
+
 /* ================= Chapeta y pesos =================
    El peso se guarda siempre en kilos. Si la finca trabaja en arrobas,
    solo cambia cómo se muestra y cómo se escribe (1 @ = 12,5 kg). */
@@ -2395,8 +2620,13 @@ async function guardarPeso(animalId){
   if(error){ pwMsg('Error: ' + error.message, true); return; }
   pwMsg('');
   toast('✓ Peso guardado: ' + pesoTxt(kg));
+  const scroll = window.scrollY;
   await loadPesajes();
+  STATE.agenda = null;
   _openFicha(animalId, true);
+  // Se vuelve al mismo punto: no te saca del animal
+  requestAnimationFrame(function(){ window.scrollTo(0, scroll); });
+  renderDashboard(); renderAnimals(); renderAgendaDash();
 }
 
 /* Bloque de tareas proyectadas dentro de la ficha del animal */
@@ -2657,6 +2887,7 @@ function _openFicha(id, isBack){
       <div class="kv"><span class="k">Lote</span><span class="v">${esc(loteOf(a)||'—')}</span></div>
     </div>
     ${fichaPeso(a)}
+    ${fichaSanidad(a)}
     ${fichaAgenda(a)}
     <div class="section-title">Genealogía</div>
     <div class="card" style="padding:4px 16px">
@@ -2770,7 +3001,16 @@ function val(id){ const el=document.getElementById(id); return el?el.value:''; }
 /* ================= Animales: alta / edición ================= */
 let editingId = null;   // null = creando; id = editando
 
+function mostrarCampoPeso(mostrar){
+  const box = document.getElementById('f-peso-box');
+  if(box) box.classList.toggle('hidden', !mostrar);
+  const c = document.getElementById('f-peso');
+  if(c && mostrar) c.value = '';
+  const lab = document.getElementById('f-peso-lab');
+  if(lab) lab.textContent = 'Peso actual en ' + (unidadPeso()==='arroba' ? 'arrobas (@)' : 'kilos (kg)') + ' (opcional)';
+}
 function openNewAnimal(){
+  mostrarCampoPeso(true);
   editingId=null;
   document.getElementById('form-title').textContent='Nuevo animal';
   buildFormSelects(); clearForm(); renderFormEstados();
@@ -2778,6 +3018,7 @@ function openNewAnimal(){
   show('form');
 }
 function openEditAnimal(id){
+  mostrarCampoPeso(false);
   const a=STATE.animales.find(x=>x.id==id); if(!a) return;
   editingId=id;
   document.getElementById('form-title').textContent='Editar animal';
@@ -2849,6 +3090,29 @@ async function saveAnimal(){
     : await sb.from('animales').insert(row);
   if(res.error){ toast('Error: '+res.error.message); return; }
   toast(editingId?'✓ Animal actualizado':'✓ Animal agregado');
+  // Peso inicial: si lo escribieron en el formulario, queda como primer pesaje
+  try{
+    const pIni = val('f-peso');
+    if(pIni && !editingId){
+      const kgIni = aKilos(pIni);
+      if(kgIni){
+        const nuevo = (STATE.animales||[]).slice().sort(function(x,y){
+          return new Date(y.created_at||0) - new Date(x.created_at||0);
+        })[0];
+        const codigo = (val('f-codigo')||'').trim();
+        const { data: recien } = await sb.from('animales').select('id')
+          .eq('finca_id', STATE.fincaId).eq('codigo', codigo).limit(1);
+        const destino = (recien && recien[0]) ? recien[0].id : (nuevo ? nuevo.id : null);
+        if(destino){
+          await sb.from('pesajes').insert({ animal_id: destino, finca_id: STATE.fincaId,
+                                            fecha: hoyISO(), peso_kg: kgIni });
+          toast('✓ Animal creado con ' + pesoTxt(kgIni));
+        }
+      }
+    }
+    const campoPeso = document.getElementById('f-peso');
+    if(campoPeso) campoPeso.value = '';
+  }catch(e){ console.error(e); }
   await refreshData();
   show('animales');
 }
