@@ -1,0 +1,3501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2e7d46">
+<title>Vantik</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ PANTALLA DE CARGA (vaca mugiendo) ============ -->
+  <div id="boot-loader">
+    <div class="moo-wrap">
+      <div class="moo-cow"><img src="cow-white.png" class="mc-base" alt="Vantik"><img src="cow-moo.png" class="mc-moo" alt=""></div>
+      <span class="moo-w w1"></span><span class="moo-w w2"></span><span class="moo-w w3"></span>
+    </div>
+    <div class="moo-text">Muuu… cargando</div>
+  </div>
+
+
+  <!-- Menú deslizable: hamburguesa + fondo -->
+  <button id="hamb" class="hamb" style="display:none" onclick="openDrawer()" aria-label="Menú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  <div id="overlay" class="overlay" onclick="closeDrawer()"></div>
+
+  <!-- ============ CONFIG SCREEN ============ -->
+  <section id="screen-config" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Conecta tu Supabase</h1>
+    <p class="lead">Pega los datos de tu proyecto. Se guardan solo en este dispositivo (no se envían a nadie más).</p>
+    <label>Project URL</label>
+    <input id="cfg-url" placeholder="https://xxxxx.supabase.co" autocapitalize="off" autocorrect="off">
+    <label>anon public key</label>
+    <textarea id="cfg-key" rows="3" placeholder="eyJhbGc..." autocapitalize="off" autocorrect="off"></textarea>
+    <p class="field-hint">Supabase → Project Settings → API. La <b>anon key</b> es pública y segura para el navegador (protegida por tu RLS).</p>
+    <button class="btn" style="margin-top:18px" onclick="saveConfig()">Guardar y continuar</button>
+  </section>
+
+  <!-- ============ LOGIN SCREEN ============ -->
+  <section id="screen-login" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Vantik</h1>
+    <p class="lead">Control ganadero de tu finca.</p>
+    <label>Correo</label>
+    <input id="log-email" type="email" placeholder="tu@correo.com" autocapitalize="off">
+    <label>Contraseña</label>
+    <input id="log-pass" type="password" placeholder="••••••••">
+    <button class="btn" style="margin-top:18px" onclick="doLogin()">Entrar</button>
+    <p class="field-hint" style="text-align:right;margin-top:10px">
+      <a onclick="show('recuperar')" style="color:var(--brand);font-weight:700;cursor:pointer">¿Olvidaste tu contraseña?</a>
+    </p>
+    <button class="btn line" style="margin-top:10px" onclick="show('registro')">Crear mi cuenta</button>
+    <button class="btn ghost" style="margin-top:10px" onclick="show('invitacion')">Tengo un código de invitación</button>
+    <p class="field-hint" style="text-align:center;margin-top:16px">
+      <a href="index.html" style="color:var(--brand);font-weight:700;text-decoration:none">← Conocer Vantik</a>
+    </p>
+    <button class="back" style="margin-top:8px;justify-content:center" onclick="show('config')">Cambiar proyecto Supabase</button>
+  </section>
+
+  <section id="screen-invitacion" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Crea tu cuenta</h1>
+    <p class="lead">Te invitaron a una finca en Vantik. Elige tu propia contraseña: nadie más la conoce.</p>
+    <label>Código de invitación</label>
+    <input id="inv-in-codigo" placeholder="VTK-XXXXXX" autocapitalize="characters" autocomplete="off">
+    <label>Tu correo</label>
+    <input id="inv-in-email" type="email" placeholder="tu@correo.com" autocapitalize="off">
+    <label>Crea tu contraseña</label>
+    <input id="inv-in-pass" type="password" placeholder="Mínimo 6 caracteres">
+    <label>Repite la contraseña</label>
+    <input id="inv-in-pass2" type="password" placeholder="Escríbela otra vez">
+    <button class="btn" style="margin-top:18px" id="inv-in-btn" onclick="registrarConInvitacion()">Crear mi cuenta y entrar</button>
+    <div id="inv-in-msg" class="exp-status hidden" style="margin-top:14px"></div>
+    <button class="back" style="margin-top:12px;justify-content:center" onclick="show('login')">← Ya tengo cuenta</button>
+  </section>
+
+    <!-- ============ CREAR CUENTA (solicitud de acceso) ============ -->
+  <section id="screen-registro" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Crear mi cuenta</h1>
+    <p class="lead">Cuéntanos de tu finca y elige tu contraseña. Revisamos tu solicitud y te activamos el acceso.</p>
+    <label>Tu nombre *</label>
+    <input id="rg-nombre" placeholder="Nombre y apellido" autocomplete="name">
+    <label>WhatsApp *</label>
+    <input id="rg-tel" placeholder="300 123 4567" inputmode="tel" autocomplete="tel">
+    <label>Correo *</label>
+    <input id="rg-email" type="email" placeholder="tu@correo.com" autocapitalize="off" autocomplete="email">
+    <label>Crea tu contraseña *</label>
+    <input id="rg-pass" type="password" placeholder="Mínimo 6 caracteres">
+    <label>Repite la contraseña *</label>
+    <input id="rg-pass2" type="password" placeholder="Escríbela otra vez">
+    <label>Nombre de la finca</label>
+    <input id="rg-finca" placeholder="La Esperanza">
+    <label>Municipio / vereda</label>
+    <input id="rg-ubic" placeholder="Montería, Córdoba">
+    <label>¿Cuántos animales tienes?</label>
+    <select id="rg-cant">
+      <option value="">Selecciona…</option>
+      <option>Menos de 50</option><option>50 a 150</option><option>150 a 400</option>
+      <option>400 a 1000</option><option>Más de 1000</option>
+    </select>
+    <button class="btn" style="margin-top:18px" id="rg-btn" onclick="crearCuenta()">Crear cuenta y solicitar acceso</button>
+    <div id="rg-msg" class="exp-status hidden" style="margin-top:14px"></div>
+    <p class="field-hint" style="text-align:center;margin-top:12px">Al continuar aceptas los
+      <a href="terminos.html" style="color:var(--brand)">términos</a> y la
+      <a href="privacidad.html" style="color:var(--brand)">política de privacidad</a>.</p>
+    <button class="back" style="margin-top:10px;justify-content:center" onclick="show('login')">← Ya tengo cuenta</button>
+  </section>
+
+  <!-- ============ SOLICITUD EN REVISIÓN ============ -->
+  <section id="screen-revision" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl" id="rev-titulo">Tu solicitud está en revisión</h1>
+    <p class="lead" id="rev-texto">Ya recibimos tus datos. Te activamos el acceso muy pronto y te avisamos.</p>
+    <div class="card" id="rev-datos" style="padding:4px 16px;margin-top:6px"></div>
+    <button class="btn" style="margin-top:18px" onclick="revisarEstado()">Ya me aprobaron, entrar</button>
+    <a class="btn line" style="margin-top:10px;text-decoration:none" href="index.html">Conocer Vantik</a>
+    <button class="back" style="margin-top:12px;justify-content:center" onclick="doLogout()">Cerrar sesión</button>
+  </section>
+
+<section id="screen-recuperar" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Recuperar contraseña</h1>
+    <p class="lead">Escribe tu correo y te mandamos un enlace para poner una nueva.</p>
+    <label>Tu correo</label>
+    <input id="rec-email" type="email" placeholder="tu@correo.com" autocapitalize="off" autocomplete="email">
+    <button class="btn" style="margin-top:18px" id="rec-btn" onclick="recuperarClave()">Enviarme el enlace</button>
+    <div id="rec-msg" class="exp-status hidden" style="margin-top:14px"></div>
+    <p class="field-hint" style="text-align:center;margin-top:14px">¿No te llega? Revisa el spam, o pídele al dueño de la finca que te vuelva a invitar.</p>
+    <button class="back" style="margin-top:10px;justify-content:center" onclick="show('login')">← Volver</button>
+  </section>
+
+<section id="screen-clave" class="centered hidden">
+    <div class="brandmark"><div class="logo logo-lg"><img src="cow-white.png" alt="Vantik" class="logocow"></div></div>
+    <h1 class="title-xl">Crea tu contraseña</h1>
+    <p class="lead" id="clave-sub">Ya tienes acceso a la finca. Define una contraseña para entrar de ahora en adelante.</p>
+    <label>Contraseña</label>
+    <input id="clave-1" type="password" placeholder="Mínimo 6 caracteres">
+    <label>Repite la contraseña</label>
+    <input id="clave-2" type="password" placeholder="Escríbela otra vez">
+    <button class="btn" style="margin-top:18px" id="clave-btn" onclick="guardarClave()">Guardar y entrar</button>
+    <div id="clave-msg" class="exp-status hidden" style="margin-top:14px"></div>
+  </section>
+
+  <div id="modal-arbol" class="modal-bg hidden"></div>
+
+  <!-- ============ MAIN APP ============ -->
+  <main id="app-main" class="hidden">
+
+    <!-- DASHBOARD -->
+    <section id="view-inicio" class="view">
+      <div class="topbar">
+        <div class="brandmark"><div class="logo"><img src="cow-white.png" alt="Vantik" class="logocow"></div><div><h1>Vantik</h1><div class="sub" id="finca-name">—</div></div></div>
+      </div>
+      <div class="content">
+        <div id="admin-banner" class="banner hidden" style="background:#e8f1ea;border-color:#cfe3d5;color:#245a40"></div>
+        <div id="dash-loading" class="spinner"></div>
+        <div id="dash-body" class="hidden">
+          <div id="dash-checklist" class="hidden" style="margin-bottom:20px"></div>
+          <div class="grid-stats" id="dash-stats"></div>
+          <div class="section-title">Composición del hato</div>
+          <div class="card" id="dash-comp" style="padding:6px 0"></div>
+          <div class="section-title">Por estado reproductivo</div>
+          <div class="card" id="dash-estados" style="padding:6px 0"></div>
+          <div class="section-title">Próximas tareas</div>
+          <div class="card" id="dash-agenda" style="overflow:hidden"></div>
+          <div class="section-title">Alertas</div>
+          <div id="dash-alertas"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANIMALES -->
+    <section id="view-animales" class="view hidden">
+      <div class="topbar">
+        <div><h1>Animales</h1><div class="sub" id="anim-count">—</div></div>
+        <button class="btn" style="width:auto;padding:9px 14px;font-size:14px" onclick="openNewAnimal()">+ Nuevo</button>
+      </div>
+      <div class="content">
+        <input id="anim-search" placeholder="Buscar por código, ID o raza…" oninput="renderAnimals()" style="margin-bottom:10px">
+        <div class="chips" id="filter-lote"></div>
+        <div class="chips" id="filter-estado"></div>
+        <div id="anim-loading" class="spinner"></div>
+        <div class="card hidden" id="anim-list" style="margin-top:10px;overflow:hidden"></div>
+      </div>
+    </section>
+
+    <!-- REGISTRAR EVENTO -->
+    <section id="view-registrar" class="view hidden">
+      <div class="topbar"><div><h1>Registrar</h1><div class="sub" id="reg-sub">Reproducción y sanidad</div></div></div>
+      <div class="content">
+        <div class="chips" style="margin-bottom:14px">
+          <button class="chip active" id="tab-repro" onclick="setRegistro('repro')">Reproducción</button>
+          <button class="chip" id="tab-sanidad" onclick="setRegistro('sanidad')">Sanidad</button>
+        </div>
+        <div id="bloque-sanidad" class="hidden">
+          <div id="san-banner" class="banner hidden">Falta crear la tabla <b>sanidad</b>. Corre el script y recarga.</div>
+          <label>Animal</label>
+          <select id="sa-animal"></select>
+          <label>Tipo</label>
+          <select id="sa-tipo" onchange="renderProductoSelect(); renderSanidadCampos()">
+            <option value="vacuna">Vacunación</option>
+            <option value="desparasitacion">Desparasitación</option>
+            <option value="vitaminas">Vitaminas / minerales</option>
+            <option value="tratamiento">Tratamiento (antibiótico u otro)</option>
+            <option value="revision">Revisión veterinaria</option>
+          </select>
+          <label>Producto</label>
+          <select id="sa-prod-sel" onchange="onProductoChange()"></select>
+          <input id="sa-producto" class="hidden" style="margin-top:8px" placeholder="Escribe el nombre del producto">
+          <label>Fecha</label>
+          <input id="sa-fecha" type="date">
+          <div id="sa-extra"></div>
+          <label>Observaciones</label>
+          <textarea id="sa-obs" rows="2" placeholder="Opcional"></textarea>
+          <button class="btn" style="margin-top:16px" id="btn-sa" onclick="guardarSanidad()">Guardar en sanidad</button>
+          <div id="sa-msg" class="exp-status hidden"></div>
+        </div>
+        <div id="bloque-repro">
+        <div id="ev-banner" class="banner hidden">La tabla <b>eventos_reproductivos</b> no existe aún. Corre el script SQL que te entregué para activar el guardado.</div>
+        <label>Animal</label>
+        <select id="ev-animal" onchange="onEventAnimalChange()"></select>
+        <div id="ev-noapt" class="banner hidden" style="margin-top:12px">
+          Los eventos reproductivos solo aplican a <b>hembras aptas</b> (novilla en edad de entorar o vaca).
+          A este animal sí puedes registrarle sanidad o peso.
+          <button class="btn ghost" style="margin-top:10px" onclick="setRegistro('sanidad')">Registrar sanidad</button>
+          <button class="btn line" style="margin-top:8px" onclick="irAFichaDelEvento()">Ver su ficha y pesarlo</button>
+        </div>
+        <label>Tipo de evento</label>
+        <select id="ev-tipo" onchange="renderEventFields()">
+          <option value="servicio">Servicio / IATF</option>
+          <option value="palpacion">Palpación / diagnóstico</option>
+          <option value="parto">Parto</option>
+          <option value="aborto">Aborto</option>
+          <option value="secado">Secado</option>
+        </select>
+        <label>Fecha</label>
+        <input id="ev-fecha" type="date">
+        <div id="ev-extra"></div>
+        <label>Observaciones</label>
+        <textarea id="ev-obs" rows="2" placeholder="Opcional"></textarea>
+        <button id="btn-ev" class="btn" style="margin-top:18px" onclick="saveEvent()">Guardar evento</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section id="view-ajustes" class="view hidden">
+      <div class="topbar"><div><h1>Ajustes</h1><div class="sub" id="user-email">—</div></div></div>
+      <div class="content">
+        <div class="section-title">Sesión</div>
+        <button class="btn line" onclick="show('config')">Cambiar proyecto Supabase</button>
+        <button class="btn danger" style="margin-top:10px" onclick="doLogout()">Cerrar sesión</button>
+        <div class="section-title">Acerca de</div>
+        <div class="card" style="padding:14px">
+          <div class="kv"><span class="k">App</span><span class="v">Vantik PWA</span></div>
+          <div class="kv"><span class="k">Versión</span><span class="v">2.3 · Productos</span></div>
+          <div class="kv"><span class="k">Base de datos</span><span class="v">Supabase</span></div>
+        </div>
+        <button class="btn line" style="margin-top:14px" onclick="mostrarChecklist()">Ver la guía de primeros pasos</button>
+        <p class="field-hint" style="margin-top:14px">Instala la app: en el navegador toca “Añadir a pantalla de inicio” (Chrome/Safari).</p>
+        <p class="field-hint" style="margin-top:12px">
+          <a href="privacidad.html" style="color:var(--brand);font-weight:600">Política de privacidad</a>
+          &nbsp;·&nbsp;
+          <a href="terminos.html" style="color:var(--brand);font-weight:600">Términos de uso</a>
+          &nbsp;·&nbsp;
+          <a href="index.html" style="color:var(--brand);font-weight:600">Página de inicio</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- AGENDA: calendario reproductivo con tareas proyectadas -->
+    <section id="view-agenda" class="view hidden">
+      <div class="topbar"><div><h1>Agenda</h1><div class="sub" id="agenda-sub">Calendario reproductivo</div></div></div>
+      <div class="content">
+        <div id="agenda-banner" class="banner hidden">Aún no hay eventos reproductivos registrados. Anota un servicio, una palpación o un parto en <b>Registrar</b> y la agenda se arma sola.</div>
+        <div class="ag-summary" id="agenda-resumen"></div>
+        <div class="chips" id="agenda-chips"></div>
+        <div id="agenda-lista"></div>
+        <p class="field-hint" style="margin:18px 4px 0">Las fechas son estimadas a partir de los eventos que registras
+          (gestación de 283 días). Confírmalas siempre con tu veterinario.</p>
+      </div>
+    </section>
+
+    <!-- FINCA: datos, lotes, usuarios, ajustes -->
+    <section id="view-finca" class="view hidden">
+      <div class="topbar"><div><h1>Finca</h1><div class="sub" id="finca-sub">—</div></div></div>
+      <div class="content">
+        <div class="section-title">Datos de la finca</div>
+        <div class="card" style="padding:14px">
+          <label>Nombre</label>
+          <input id="fca-nombre" placeholder="Nombre de la finca">
+          <label>Ubicación</label>
+          <input id="fca-ubic" placeholder="Municipio / vereda">
+          <button class="btn" style="margin-top:14px" onclick="saveFinca()">Guardar datos</button>
+        </div>
+        <div class="section-title">Lotes / potreros</div>
+        <div class="card" id="fca-lotes" style="overflow:hidden"></div>
+        <button class="btn line" style="margin-top:10px" onclick="addLote()">+ Agregar lote</button>
+        <div class="section-title">Personas con acceso</div>
+        <p class="field-hint" style="margin:-4px 2px 10px">Todas las personas de la finca tienen los mismos permisos: pueden registrar, editar y consultar todo.</p>
+        <div class="card" id="fca-usuarios" style="overflow:hidden"></div>
+
+        <button class="btn" style="margin-top:10px" onclick="abrirAgregarPersona()">+ Agregar persona</button>
+
+        <div class="card hidden" id="inv-form" style="padding:16px;margin-top:10px">
+          <label>Correo de la persona</label>
+          <input id="inv-email" type="email" placeholder="correo@ejemplo.com" autocapitalize="off" autocomplete="off">
+          <p class="field-hint">Le llegará una invitación a ese correo. Si no le llega, podrás enviarle el código por WhatsApp.</p>
+          <button class="btn" style="margin-top:12px" id="inv-btn" onclick="enviarInvitacion()">Enviar invitación</button>
+          <button class="btn line" style="margin-top:8px" onclick="cerrarAgregarPersona()">Cancelar</button>
+          <div id="inv-msg" class="exp-status hidden"></div>
+        </div>
+
+        <div class="card hidden" id="inv-listo" style="padding:18px;margin-top:10px;border:1px dashed var(--brand);background:var(--soft)">
+          <div style="font-weight:800;color:var(--brand);font-size:15px">Invitación creada</div>
+          <div class="field-hint" id="inv-listo-sub" style="margin-top:2px">—</div>
+          <div class="inv-code" id="inv-codigo">—</div>
+          <button class="btn" style="margin-top:12px" onclick="compartirWhatsApp()">Enviar por WhatsApp</button>
+          <button class="btn line" style="margin-top:8px" onclick="copiarInvitacion()">Copiar mensaje</button>
+          <button class="btn line" style="margin-top:8px" onclick="cerrarAgregarPersona()">Listo</button>
+        </div>
+
+        <div class="section-title hidden" id="inv-pend-title">Invitaciones pendientes</div>
+        <div class="card hidden" id="fca-invitaciones" style="overflow:hidden"></div>
+        <div class="section-title">Ajustes de la finca</div>
+        <div id="soporte-box">
+          <button id="btn-soporte" class="btn line" onclick="toggleSoporte()">Permitir soporte del admin: OFF</button>
+          <p class="field-hint" style="margin:8px 2px 0">Actívalo solo cuando quieras que el administrador entre a ayudarte.</p>
+        </div>
+        <div class="section-title">Exportar información</div>
+        <div class="card" style="padding:14px">
+          <p class="field-hint" style="margin:0 0 12px">Genera un reporte completo del hato con indicadores, resúmenes y gráficas. El archivo se descarga a tu dispositivo.</p>
+          <button class="btn" onclick="exportarHato('xlsx')">Excel con gráficas (.xlsx)</button>
+          <button class="btn line" style="margin-top:10px" onclick="exportarHato('pdf')">Informe PDF con gráficas</button>
+          <button class="btn line" style="margin-top:10px" onclick="exportarHato('csv')">CSV limpio (solo datos)</button>
+          <div id="exp-status" class="exp-status hidden"></div>
+          <div id="exp-drive" class="exp-drive hidden">
+            <div class="exp-drive-t">Archivo descargado</div>
+            <div class="exp-drive-s" id="exp-drive-file">—</div>
+            <button class="btn ghost" style="margin-top:10px" onclick="abrirDrive()">Subirlo a Google Drive</button>
+            <p class="field-hint" style="margin-top:8px">Se abrirá tu Drive: arrastra allí el archivo que acabas de descargar, o usa <b>Nuevo → Subir archivo</b>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN: panel de control + fincas -->
+    <section id="view-admin" class="view hidden">
+      <div class="topbar"><div><h1>Panel de administrador</h1><div class="sub">Estado de la plataforma</div></div></div>
+      <div class="content">
+        <div class="admin-hero">
+          <div class="ah-logo"><img src="cow-white.png" alt=""></div>
+          <div><div class="ah-title">Consola de administrador</div><div class="ah-sub" id="admin-email">—</div></div>
+          <span class="ah-badge">ADMIN</span>
+        </div>
+        <div class="section-title">Estado del sistema</div>
+        <div class="grid-stats" id="admin-status"></div>
+        <div class="section-title">Plataforma</div>
+        <div class="grid-stats" id="admin-metrics"></div>
+        <p class="field-hint" style="margin:8px 2px 0">Ingresos: requiere integrar un sistema de pagos (aún no conectado).</p>
+        <div class="section-title">Composición global del hato</div>
+        <div class="card" id="admin-comp" style="padding:6px 0"></div>
+        <div class="section-title">Fincas por tamaño</div>
+        <div class="card" id="admin-fincasize" style="padding:6px 0"></div>
+        <div class="section-title">Solicitudes de acceso</div>
+        <p class="field-hint" style="margin:-4px 2px 10px">Llegan desde la página pública. Toca una para marcarla como contactada.</p>
+        <div class="card" id="admin-solicitudes" style="overflow:hidden"></div>
+        <div class="section-title">Actividad reciente</div>
+        <div class="card" id="admin-activity" style="overflow:hidden"></div>
+        <div class="section-title">Fincas registradas</div>
+        <p class="field-hint" style="margin:-4px 2px 10px">Entra a una finca para ver sus datos. Solo podrás editar si el dueño activó el soporte.</p>
+        <div class="card" id="admin-list" style="overflow:hidden"></div>
+      </div>
+    </section>
+
+    <!-- FICHA (overlay) -->
+    <section id="view-ficha" class="view hidden">
+      <div class="topbar"><button class="back" onclick="fichaBack()">‹ Volver</button></div>
+      <div class="content" id="ficha-body"></div>
+    </section>
+
+    <!-- FORMULARIO ANIMAL (alta / edición) -->
+    <section id="view-form" class="view hidden">
+      <div class="topbar"><button class="back" onclick="show('animales')">‹ Cancelar</button></div>
+      <div class="content">
+        <h1 id="form-title" style="margin:4px 0 8px;font-size:22px">Nuevo animal</h1>
+        <label>Código *</label>
+        <input id="f-codigo" placeholder="Ej. V007" autocapitalize="characters">
+        <label>ID electrónico</label>
+        <input id="f-idelec" placeholder="Ej. 982000000012" inputmode="numeric">
+        <label>Raza</label>
+        <input id="f-raza" placeholder="Ej. Brahman">
+        <label>Sexo</label>
+        <select id="f-sexo" onchange="onFormAgeChange()"><option value="hembra">Hembra</option><option value="macho">Macho</option></select>
+        <label>Fecha de nacimiento</label>
+        <input id="f-fnac" type="date" onchange="onFormAgeChange()">
+        <label>Categoría / fase</label>
+        <select id="f-cat" onchange="renderFormEstados()"></select>
+        <p class="field-hint">Se sugiere sola según la edad. Si la cambias a mano, queda fija.</p>
+        <label>Estado</label>
+        <select id="f-estado"></select>
+        <label>Lote</label>
+        <select id="f-lote"></select>
+        <label>Madre</label>
+        <select id="f-madre"></select>
+        <label>Padre</label>
+        <select id="f-padre"></select>
+        <div id="f-peso-box">
+          <label id="f-peso-lab">Peso actual (opcional)</label>
+          <input id="f-peso" type="number" inputmode="decimal" step="0.1" min="1" placeholder="Ej: 325">
+          <p class="field-hint">Si lo escribes, queda como su primer pesaje de hoy.</p>
+        </div>
+        <button class="btn" style="margin-top:18px" onclick="saveAnimal()">Guardar</button>
+        <button id="btn-baja" class="btn danger hidden" style="margin-top:10px" onclick="bajaAnimal()">Dar de baja / eliminar (venta o muerte)</button>
+      </div>
+    </section>
+
+    <!-- BOTTOM NAV -->
+    <nav class="nav" id="bottom-nav">
+      <div class="nav-brand"><div class="logo"><img src="cow-white.png" class="logocow" alt=""></div><span>Vantik</span></div>
+      <button data-nav="inicio" class="active" onclick="show('inicio')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Inicio</button>
+      <button data-nav="animales" onclick="show('animales')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Animales</button>
+      <button data-nav="registrar" onclick="show('registrar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Registrar</button>
+      <button data-nav="agenda" onclick="show('agenda')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>Agenda</button>
+      <button data-nav="finca" onclick="show('finca')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg>Finca</button>
+      <button id="nav-fincas" data-nav="admin" style="display:none" onclick="show('admin')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="7" height="11"/><rect x="14" y="4" width="7" height="16"/><path d="M3 20h18"/></svg>Fincas<span id="nav-solicitudes" class="nav-dot hidden">0</span></button>
+      <button data-nav="ajustes" onclick="show('ajustes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg>Ajustes</button>
+    </nav>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =====================================================================
+   VANTIK · app.js  (v0.2)
+   MAPA DEL ARCHIVO — para ubicar rápido dónde cambiar cosas:
+     1. State ............ variables globales (cliente Supabase + datos en memoria)
+     2. Boot / Config .... arranque y credenciales Supabase
+     3. Auth ............. login / logout (registro público desactivado)
+     4. Data load ........ carga finca, catálogos y animales
+     5. Helpers catálogo . traduce ids/códigos a nombres (estado, lote, categoría)
+     6. Dashboard ........ pantalla Inicio (conteos + alertas)
+     7. Animales ......... lista + filtros + búsqueda
+     8. Ficha ............ detalle de un animal + genealogía
+     9. Eventos .......... formulario Registrar (guarda en eventos_reproductivos)
+    10. Navigation ....... control de pantallas y nav inferior
+    11. Utils ............ esc() [anti-XSS], toast(), etc.
+   Toda salida a pantalla pasa por esc() para evitar inyección de HTML/XSS.
+   ===================================================================== */
+
+/* ================= 1. State ================= */
+let sb = null;               // supabase client
+let CFG = null;              // {url,key}
+let STATE = {
+  fincaId:null, fincaName:'', user:null,
+  animales:[], lotes:[], categorias:[], estados:[],
+  loteFilter:'', estadoFilter:'', eventosTableOk:true,
+  isAdmin:false, soporte:false, fincaUbic:'', adminFincas:[], adminCounts:{}
+};
+
+/* ================= Boot ================= */
+// Credenciales precargadas (puedes cambiarlas en Ajustes → Cambiar proyecto)
+const DEFAULT_CFG = {
+  url:'https://yjxzegieztibntnzyrhu.supabase.co',
+  key:'sb_publishable_BtAnc5TNbOsvpkeoGsKE7A_Ir2gLvCg'
+};
+function loadConfig(){
+  try{ return JSON.parse(localStorage.getItem('vantik_cfg')||'null') || DEFAULT_CFG; }catch(e){ return DEFAULT_CFG; }
+}
+function saveConfig(){
+  const url=document.getElementById('cfg-url').value.trim();
+  const key=document.getElementById('cfg-key').value.trim();
+  if(!url||!key){ toast('Completa URL y anon key'); return; }
+  CFG={url,key};
+  localStorage.setItem('vantik_cfg', JSON.stringify(CFG));
+  initClient();
+  checkSession();
+}
+function initClient(){
+  if(!CFG) return false;
+  try{ sb = supabase.createClient(CFG.url, CFG.key); return true; }
+  catch(e){ toast('Config inválida'); return false; }
+}
+async function checkSession(){
+  const m=/[#&]inv=([A-Za-z0-9\-]+)/.exec(location.hash||'');
+  const codigoInv = m ? m[1].toUpperCase() : null;
+  const esRecuperacion = /type=recovery/.test(location.hash||'');
+  const { data } = await sb.auth.getSession();
+  if(data.session){
+    STATE.user=data.session.user;
+    if(esRecuperacion){
+      hideBoot();
+      location.hash='';
+      document.getElementById('clave-sub').textContent='Escribe la contraseña nueva que vas a usar de ahora en adelante.';
+      show('clave');
+      return;
+    }
+    if(codigoInv){
+      hideBoot();
+      const ok = await procesarInvitacionDeEnlace(codigoInv);
+      if(!ok) return;
+      show('clave');
+      return;
+    }
+    await enterApp();
+    return;
+  }
+  if(codigoInv){
+    hideBoot();
+    show('invitacion');
+    const c=document.getElementById('inv-in-codigo'); if(c) c.value=codigoInv;
+    location.hash='';
+    return;
+  }
+  show('login');
+}
+async function boot(){
+  CFG=loadConfig();
+  if(!CFG){ show('config'); return; }
+  if(!initClient()){ show('config'); return; }
+  await checkSession();
+}
+
+/* ================= Auth ================= */
+async function doLogin(){
+  const email=document.getElementById('log-email').value.trim();
+  const pass=document.getElementById('log-pass').value;
+  if(!email||!pass){ toast('Correo y contraseña'); return; }
+  const { error } = await sb.auth.signInWithPassword({email,password:pass});
+  if(error){ toast(error.message); return; }
+  const { data } = await sb.auth.getSession();
+  STATE.user=data.session.user;
+  await enterApp();
+}
+// Registro público desactivado por seguridad: los usuarios se crean/invitan
+// desde Supabase y se vinculan a una finca en usuario_finca (rol).
+async function doLogout(){
+  await sb.auth.signOut();
+  STATE.user=null;
+  show('login');
+}
+
+/* ================= Data load ================= */
+async function enterApp(){
+  document.getElementById('user-email').textContent = STATE.user?.email||'';
+  await loadCatalogs();
+  await checkAdmin();
+  updateAdminUI();
+  if(STATE.isAdmin){ await loadAdminFincas(); show('admin'); return; }
+  await loadFinca();
+  if(!STATE.fincaId){ await mostrarRevision(); return; }
+  await loadFincaData();
+  show('inicio');
+}
+async function checkAdmin(){
+  try{
+    const { data } = await sb.from('admins').select('user_id').eq('user_id', STATE.user.id).limit(1);
+    STATE.isAdmin = !!(data && data.length);
+  }catch(e){ STATE.isAdmin=false; }
+}
+async function loadFinca(){
+  const { data, error } = await sb.from('usuario_finca')
+    .select('finca_id, rol, fincas(nombre, ubicacion, soporte_activo)').limit(1);
+  if(!error && data && data.length){
+    const fc=data[0].fincas||{};
+    STATE.fincaId=data[0].finca_id;
+    STATE.fincaName=fc.nombre || 'Mi finca';
+    STATE.fincaUbic=fc.ubicacion||'';
+    STATE.soporte=!!fc.soporte_activo;
+  }else{
+    const f = await sb.from('fincas').select('id,nombre,ubicacion,soporte_activo').limit(1);
+    if(f.data && f.data.length){ STATE.fincaId=f.data[0].id; STATE.fincaName=f.data[0].nombre; STATE.fincaUbic=f.data[0].ubicacion||''; STATE.soporte=!!f.data[0].soporte_activo; }
+  }
+}
+async function loadCatalogs(){
+  const [cats,ests] = await Promise.all([
+    sb.from('categorias_catalogo').select('*'),
+    sb.from('estados_catalogo').select('*')
+  ]);
+  STATE.categorias = cats.data||[];
+  STATE.estados = ests.data||[];
+}
+async function loadLotes(){
+  const { data } = await sb.from('lotes').select('*').eq('finca_id', STATE.fincaId);
+  STATE.lotes = data||[];
+}
+async function loadAnimales(){
+  const { data, error } = await sb.from('animales').select('*').eq('finca_id', STATE.fincaId).is('fecha_baja', null);
+  if(error){ toast('Error cargando animales: '+error.message); STATE.animales=[]; }
+  else STATE.animales = data||[];
+}
+// Carga los datos de la finca seleccionada y repinta todo.
+async function loadFincaData(){
+  await loadLotes();
+  await loadAnimales();
+  await autoSyncFases();
+  await loadEventos();
+  await loadPesajes();
+  await loadSanidad();
+  document.getElementById('finca-name').textContent = STATE.fincaName||'—';
+  updateAdminUI(); updateSoporteBtn();
+  STATE.agenda = null;
+  renderDashboard(); renderFilters(); renderAnimals(); fillEventAnimalSelect();
+  renderAgendaDash(); renderChecklist();
+}
+
+/* ---- Admin: panel de todas las fincas ---- */
+async function loadAdminFincas(){
+  const t0=performance.now();
+  const [f,a,u,e,ev] = await Promise.all([
+    sb.from('fincas').select('*'),
+    sb.from('animales').select('id,codigo,finca_id,categoria_id').is('fecha_baja', null),
+    sb.from('usuarios').select('id'),
+    sb.from('eventos_reproductivos').select('id'),
+    sb.from('eventos_reproductivos').select('tipo_evento,fecha,animal_id,finca_id').order('fecha',{ascending:false}).limit(8)
+  ]);
+  const latency=Math.round(performance.now()-t0);
+  STATE.adminFincas = f.data||[];
+  const counts={}, amap={}, fmap={}, comp={};
+  (a.data||[]).forEach(x=>{ counts[x.finca_id]=(counts[x.finca_id]||0)+1; amap[x.id]=x.codigo; if(x.categoria_id) comp[x.categoria_id]=(comp[x.categoria_id]||0)+1; });
+  (f.data||[]).forEach(x=>fmap[x.id]=x.nombre);
+  STATE.adminCounts=counts; STATE.adminAnimalMap=amap; STATE.adminFincaMap=fmap; STATE.adminComp=comp;
+  STATE.adminActivity=ev.data||[];
+  STATE.adminStats={
+    fincas:(f.data||[]).length,
+    usuarios:(u.data||[]).length,
+    animales:(a.data||[]).length,
+    eventos:(e.data||[]).length,
+    soporteOn:(f.data||[]).filter(x=>x.soporte_activo).length,
+    latency, dbError: !!(f.error||a.error||u.error||e.error)
+  };
+  const em=document.getElementById('admin-email'); if(em) em.textContent = STATE.user?.email||'';
+  renderAdminOps(); renderAdminActivity(); renderAdminInsights(); renderAdminFincas();
+  loadSolicitudes();
+}
+function renderAdminInsights(){
+  const total=STATE.adminStats.animales||1;
+  const fases=[['Terneras','ternera'],['Novillas','novilla'],['Vacas','vaca'],['Terneros','ternero'],['Novillos','novillo'],['Toros','toro'],['Descarte','vaca_desc']];
+  const comp=fases.map(([lab,code])=>[lab,(STATE.adminComp&&STATE.adminComp[code])||0]).filter(x=>x[1]>0);
+  const cbox=document.getElementById('admin-comp');
+  if(cbox) cbox.innerHTML = comp.length ? comp.map(([l,v])=>barRow(l,v,total,'var(--brand)')).join('') : '<div class="empty" style="padding:16px">Sin datos</div>';
+  const sizes=(STATE.adminFincas||[]).map(f=>[f.nombre, STATE.adminCounts[f.id]||0]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxS=Math.max(1,...sizes.map(x=>x[1]));
+  const sbox=document.getElementById('admin-fincasize');
+  if(sbox) sbox.innerHTML = sizes.length ? sizes.map(([l,v])=>barRow(l,v,maxS,'var(--accent)')).join('') : '<div class="empty" style="padding:16px">Sin fincas</div>';
+  setTimeout(()=>document.querySelectorAll('#admin-comp .bar-fill[data-w],#admin-fincasize .bar-fill[data-w]').forEach(el=>{ el.style.width=el.dataset.w+'%'; }),60);
+}
+function renderAdminActivity(){
+  const box=document.getElementById('admin-activity'); const A=STATE.adminActivity||[];
+  const label={servicio:'Servicio / IATF',palpacion:'Palpación',parto:'Parto',aborto:'Aborto',secado:'Secado'};
+  box.innerHTML = A.length ? A.map(ev=>`
+    <div class="row"><div class="avatar">${esc((STATE.adminAnimalMap[ev.animal_id]||'?').toString().slice(0,3))}</div>
+      <div class="main"><div class="t">${esc(label[ev.tipo_evento]||ev.tipo_evento)} · ${esc(STATE.adminAnimalMap[ev.animal_id]||'—')}</div>
+      <div class="s">${esc(STATE.adminFincaMap[ev.finca_id]||'')}${ev.fecha?' · '+esc(ev.fecha):''}</div></div></div>`).join('')
+    : '<div class="empty" style="padding:16px">Sin actividad reciente en la plataforma</div>';
+}
+function renderAdminOps(){
+  const s=STATE.adminStats||{};
+  const dbOk=!s.dbError; const online=navigator.onLine;
+  const status=[
+    ['Base de datos', dbOk?('OK · '+s.latency+' ms'):'Error', dbOk?'g':'r'],
+    ['Conexión', online?'En línea':'Sin conexión', online?'g':'r'],
+    ['Hosting', 'Operativo', 'g'],
+    ['App', 'v1.4', 'b']
+  ];
+  document.getElementById('admin-status').innerHTML = status.map(([l,v,cl],i)=>
+    `<div class="scard ${cl}" style="animation-delay:${i*50}ms"><div class="n" style="font-size:17px">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join('');
+  const metrics=[
+    ['Fincas', s.fincas||0],['Usuarios', s.usuarios||0],['Animales (total)', s.animales||0],
+    ['Eventos', s.eventos||0],['Soporte activo', s.soporteOn||0],['Ingresos (MRR)', null]
+  ];
+  document.getElementById('admin-metrics').innerHTML = metrics.map(([l,v],i)=>
+    `<div class="scard" style="animation-delay:${i*50}ms"><div class="n">${v==null?'—':'<span data-to=\"'+v+'\">0</span>'}</div><div class="l">${esc(l)}</div></div>`).join('');
+  setTimeout(()=>document.querySelectorAll('#admin-metrics [data-to]').forEach(el=>countUp(el,+el.dataset.to)),60);
+}
+/* ---- Solicitudes de acceso llegadas desde la landing ---- */
+async function loadSolicitudes(){
+  const box=document.getElementById('admin-solicitudes');
+  if(!box) return;
+  const { data, error } = await sb.from('solicitudes').select('*').order('creado_en',{ascending:false}).limit(50);
+  if(error){
+    box.innerHTML='<div class="empty" style="padding:16px">Aún no está creada la tabla <b>solicitudes</b> en Supabase. Ejecuta el script <b>solicitudes.sql</b> y recarga.</div>';
+    return;
+  }
+  STATE.solicitudes = data||[];
+  renderSolicitudes();
+}
+function renderSolicitudes(){
+  const box=document.getElementById('admin-solicitudes');
+  const S=STATE.solicitudes||[];
+  const pend=S.filter(s=>(s.estado||'nueva')==='nueva').length;
+  const dot=document.getElementById('nav-solicitudes');
+  if(dot){ dot.textContent=pend; dot.classList.toggle('hidden', pend===0); }
+  if(!S.length){ box.innerHTML='<div class="empty" style="padding:16px">Todavía no hay solicitudes.</div>'; return; }
+  box.innerHTML = S.map(s=>{
+    const f=new Date(s.creado_en);
+    const fecha=isNaN(f)?'':f.toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+    const clase = s.estado==='nueva' ? 'y' : (s.estado==='activada' ? 'g' : '');
+    return `<div class="row" onclick="marcarSolicitud('${s.id}')">
+      <div class="avatar">${esc((s.nombre||'?').slice(0,2).toUpperCase())}</div>
+      <div class="main">
+        <div class="t">${esc(s.nombre||'—')} · ${esc(s.telefono||'')}</div>
+        <div class="s">${esc([s.finca,s.ubicacion,s.cantidad].filter(Boolean).join(' · ')||'Sin detalles')} · ${esc(fecha)}</div>
+      </div>
+      <span class="badge ${clase}">${esc(cap(s.estado||'nueva'))}</span>
+    </div>`;
+  }).join('');
+}
+async function marcarSolicitud(id){
+  const S=(STATE.solicitudes||[]).find(x=>x.id===id); if(!S) return;
+  const ciclo={ nueva:'contactada', contactada:'activada', activada:'descartada', descartada:'nueva' };
+  const nuevo=ciclo[S.estado]||'contactada';
+  const { error } = await sb.from('solicitudes').update({estado:nuevo}).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  S.estado=nuevo; renderSolicitudes(); toast('Marcada como '+nuevo);
+}
+function renderAdminFincas(){
+  const box=document.getElementById('admin-list'); const F=STATE.adminFincas||[];
+  box.innerHTML = F.length ? F.map(f=>`
+    <div class="row" onclick="adminEnterFinca('${f.id}')">
+      <div class="avatar">${esc((f.nombre||'?').toString().slice(0,2).toUpperCase())}</div>
+      <div class="main"><div class="t">${esc(f.nombre||'Sin nombre')}</div>
+        <div class="s">${esc(f.ubicacion||'—')} · ${STATE.adminCounts[f.id]||0} animal(es)</div></div>
+      <span class="badge ${f.soporte_activo?'g':''}">${f.soporte_activo?'soporte ON':'solo ver'}</span>
+    </div>`).join('') : '<div class="empty">No hay fincas registradas</div>';
+}
+async function adminEnterFinca(id){
+  const f=(STATE.adminFincas||[]).find(x=>x.id==id); if(!f) return;
+  STATE.fincaId=f.id; STATE.fincaName=f.nombre; STATE.fincaUbic=f.ubicacion||''; STATE.soporte=!!f.soporte_activo;
+  await loadFincaData();
+  show('inicio');
+}
+function updateAdminUI(){
+  const navF=document.getElementById('nav-fincas');
+  if(navF) navF.style.display = STATE.isAdmin ? '' : 'none';
+  const b=document.getElementById('admin-banner');
+  if(b){
+    if(STATE.isAdmin && STATE.fincaId){ b.classList.remove('hidden');
+      b.innerHTML = `Modo administrador · viendo <b>${esc(STATE.fincaName||'')}</b> · ${STATE.soporte?'edición permitida':'solo lectura'}`;
+    } else b.classList.add('hidden');
+  }
+  const bs=document.getElementById('soporte-box');
+  if(bs) bs.style.display = STATE.isAdmin ? 'none' : '';
+}
+// El dueño activa/desactiva el soporte del admin sobre su finca.
+async function toggleSoporte(){
+  const nuevo=!STATE.soporte;
+  const { error } = await sb.from('fincas').update({soporte_activo:nuevo}).eq('id', STATE.fincaId);
+  if(error){ toast('Error: '+error.message); return; }
+  STATE.soporte=nuevo; updateSoporteBtn();
+  toast(nuevo?'✓ Soporte del admin activado':'Soporte del admin desactivado');
+}
+function updateSoporteBtn(){
+  const btn=document.getElementById('btn-soporte');
+  if(btn) btn.textContent = 'Permitir soporte del admin: '+(STATE.soporte?'ON':'OFF');
+}
+
+/* ================= Sección Finca ================= */
+function renderFinca(){
+  document.getElementById('finca-sub').textContent = STATE.fincaName||'—';
+  document.getElementById('fca-nombre').value = STATE.fincaName||'';
+  document.getElementById('fca-ubic').value = STATE.fincaUbic||'';
+  updateSoporteBtn();
+  const lb=document.getElementById('fca-lotes');
+  lb.innerHTML = STATE.lotes.length ? STATE.lotes.map(l=>`
+    <div class="row"><div class="main"><div class="t">${esc(l.nombre)}</div>
+      <div class="s">${STATE.animales.filter(a=>a.lote_id===l.id).length} animal(es)</div></div>
+      <button class="btn danger" style="width:auto;padding:7px 11px;font-size:13px" onclick="deleteLote('${l.id}','${esc(l.nombre)}')">Borrar</button></div>`).join('')
+    : '<div class="empty" style="padding:16px">Sin lotes aún</div>';
+  renderFincaUsuarios();
+}
+async function saveFinca(){
+  const nombre=val('fca-nombre').trim(), ubic=val('fca-ubic').trim();
+  if(!nombre){ toast('El nombre es obligatorio'); return; }
+  const { error } = await sb.from('fincas').update({nombre, ubicacion:ubic||null}).eq('id',STATE.fincaId);
+  if(error){ toast('Error: '+error.message); return; }
+  STATE.fincaName=nombre; STATE.fincaUbic=ubic;
+  document.getElementById('finca-name').textContent=nombre;
+  document.getElementById('finca-sub').textContent=nombre;
+  toast('✓ Datos de la finca guardados');
+}
+async function addLote(){
+  const nombre=prompt('Nombre del nuevo lote / potrero:'); if(!nombre||!nombre.trim()) return;
+  const { error } = await sb.from('lotes').insert({finca_id:STATE.fincaId, nombre:nombre.trim()});
+  if(error){ toast('Error: '+error.message); return; }
+  await loadLotes(); renderFinca(); renderFilters(); toast('✓ Lote agregado');
+}
+async function deleteLote(id,nombre){
+  if(!confirm('¿Borrar el lote "'+nombre+'"? Los animales quedarán sin lote.')) return;
+  await sb.from('animales').update({lote_id:null}).eq('lote_id',id);
+  const { error } = await sb.from('lotes').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  await loadFincaData(); renderFinca(); toast('Lote borrado');
+}
+/* ================= Primeros pasos ================= */
+function renderChecklist(){
+  const box=document.getElementById('dash-checklist');
+  if(!box || STATE.isAdmin) return;
+  if(localStorage.getItem('vantik_checklist_oculto')==='1'){ box.classList.add('hidden'); return; }
+  const A=STATE.animales||[];
+  const pasos=[
+    { ok: !!(STATE.fincaName && STATE.fincaName.trim()),
+      t:'Ponle nombre a tu finca', s:'Así aparece en tus reportes', ir:()=>show('finca') },
+    { ok: (STATE.lotes||[]).length>0,
+      t:'Crea tu primer lote o potrero', s:'Para saber dónde está cada animal', ir:()=>show('finca') },
+    { ok: A.length>0,
+      t:'Registra tu primer animal', s:'Código, raza y fecha de nacimiento', ir:()=>openNewAnimal() },
+    { ok: A.length>=5,
+      t:'Sube al menos 5 animales', s:'Con eso ya ves los indicadores del hato', ir:()=>openNewAnimal() },
+    { ok: (STATE.eventos||[]).length>0,
+      t:'Anota un evento reproductivo', s:'Un servicio o un parto activan la agenda', ir:()=>show('registrar') },
+    { ok: localStorage.getItem('vantik_exporto')==='1',
+      t:'Descarga tu primer reporte', s:'Excel o PDF con gráficas', ir:()=>show('finca') }
+  ];
+  const hechos=pasos.filter(p=>p.ok).length;
+  if(hechos===pasos.length){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  STATE.checklist=pasos;
+  const pct=Math.round(hechos*100/pasos.length);
+  box.innerHTML='<div class="chk-card"><div class="chk-head"><div class="t">Primeros pasos</div>'+
+    '<div class="s">'+hechos+' de '+pasos.length+' listos · toca cada punto para ir</div>'+
+    '<div class="chk-bar"><i style="width:'+pct+'%"></i></div></div>'+
+    pasos.map(function(p,i){ return '<div class="chk-item '+(p.ok?'ok':'')+'" onclick="irPaso('+i+')">'+
+      '<div class="chk-tick"><svg viewBox="0 0 24 24"><path d="m4 12 6 6L20 6"/></svg></div>'+
+      '<div class="m"><div class="t">'+esc(p.t)+'</div><div class="s">'+esc(p.s)+'</div></div>'+
+      '<div class="chk-go">›</div></div>'; }).join('')+
+    '<div class="chk-item" onclick="ocultarChecklist()" style="justify-content:center;color:var(--muted);font-size:13px;font-weight:600">Ya sé usarla, ocultar esta guía</div></div>';
+}
+function irPaso(i){ const p=(STATE.checklist||[])[i]; if(p && !p.ok && p.ir) p.ir(); }
+function ocultarChecklist(){
+  localStorage.setItem('vantik_checklist_oculto','1');
+  document.getElementById('dash-checklist').classList.add('hidden');
+  toast('Guía oculta. Vuelve a verla desde Ajustes.');
+}
+function mostrarChecklist(){
+  localStorage.removeItem('vantik_checklist_oculto');
+  renderChecklist(); show('inicio');
+  toast('Guía de primeros pasos activada');
+}
+
+/* ================= Personas con acceso ================= */
+async function renderFincaUsuarios(){
+  const box=document.getElementById('fca-usuarios');
+  if(!STATE.fincaId){ box.innerHTML='<div class="empty" style="padding:16px">Sin finca seleccionada</div>'; return; }
+  const { data, error } = await sb.rpc('personas_finca', { p_finca_id: STATE.fincaId });
+  if(error){ box.innerHTML='<div class="empty" style="padding:16px">No se pudo cargar la lista de personas.</div>'; return; }
+  const P=data||[]; const yo=STATE.user?.id;
+  box.innerHTML = P.length ? P.map(function(p){
+    const esDueno = ['dueño','dueno'].includes((p.rol||'').toLowerCase());
+    const soyYo = p.usuario_id===yo;
+    return '<div class="row" style="cursor:default"><div class="avatar">'+esc((p.email||'?').slice(0,2).toUpperCase())+'</div>'+
+      '<div class="main"><div class="t">'+esc(p.email||'—')+(soyYo?' <span style="color:var(--muted);font-weight:500">(tú)</span>':'')+'</div>'+
+      '<div class="s">'+(esDueno?'Dueño de la finca':'Administrador')+'</div></div>'+
+      (esDueno ? '<span class="badge g">Dueño</span>'
+               : '<button class="btn danger btn-mini" onclick="quitarPersona(\''+p.usuario_id+'\',\''+esc(p.email)+'\')">Quitar</button>')+
+      '</div>';
+  }).join('') : '<div class="empty" style="padding:16px">Solo tú por ahora.</div>';
+  renderInvitaciones();
+}
+async function renderInvitaciones(){
+  const box=document.getElementById('fca-invitaciones');
+  const tit=document.getElementById('inv-pend-title');
+  if(!box) return;
+  const { data } = await sb.from('invitaciones').select('*')
+    .eq('finca_id', STATE.fincaId).is('usada_en', null).order('creado_en',{ascending:false});
+  const I=(data||[]).filter(x=> new Date(x.expira_en) > new Date());
+  STATE.invitaciones=I;
+  const hay=I.length>0;
+  box.classList.toggle('hidden', !hay); tit.classList.toggle('hidden', !hay);
+  if(!hay) return;
+  box.innerHTML = I.map(function(i){
+    const dias=Math.max(0, Math.ceil((new Date(i.expira_en)-new Date())/86400000));
+    return '<div class="row" style="cursor:default"><div class="avatar">✉</div>'+
+      '<div class="main"><div class="t">'+esc(i.email)+'</div>'+
+      '<div class="s">Código '+esc(i.codigo)+' · vence en '+dias+' día'+(dias===1?'':'s')+'</div></div>'+
+      '<button class="btn line btn-mini" onclick="reenviarInvitacion(\''+i.id+'\')">Reenviar</button>'+
+      '<button class="btn danger btn-mini" onclick="cancelarInvitacion(\''+i.id+'\',\''+esc(i.email)+'\')">×</button></div>';
+  }).join('');
+}
+function abrirAgregarPersona(){
+  document.getElementById('inv-form').classList.remove('hidden');
+  document.getElementById('inv-listo').classList.add('hidden');
+  document.getElementById('inv-msg').classList.add('hidden');
+  document.getElementById('inv-email').value='';
+  document.getElementById('inv-email').focus();
+}
+function cerrarAgregarPersona(){
+  document.getElementById('inv-form').classList.add('hidden');
+  document.getElementById('inv-listo').classList.add('hidden');
+}
+function invMsg(txt, err){
+  const b=document.getElementById('inv-msg');
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className='exp-status'+(err?' err':'');
+  b.innerHTML=(err?'':'<span class="exp-spin"></span>')+'<span>'+esc(txt)+'</span>';
+}
+function enlaceInvitacion(codigo){
+  return location.origin + location.pathname.replace(/[^/]*$/, 'app.html') + '#inv=' + codigo;
+}
+function mensajeInvitacion(){
+  const i=STATE.invActual; if(!i) return '';
+  return 'Te di acceso a la finca "' + (STATE.fincaName||'nuestra finca') + '" en Vantik, la app donde llevamos el control del ganado.\n\n'
+    + '1) Abre este enlace: ' + enlaceInvitacion(i.codigo) + '\n'
+    + '2) Tu código es: ' + i.codigo + '\n'
+    + '3) Entra con tu correo ' + i.email + ' y crea la contraseña que tú quieras.\n\n'
+    + 'La invitación vence en 14 días.';
+}
+
+async function enviarInvitacion(){
+  const email=(document.getElementById('inv-email').value||'').trim().toLowerCase();
+  if(!email || email.indexOf('@')<1){ invMsg('Escribe un correo válido.', true); return; }
+  const btn=document.getElementById('inv-btn');
+  btn.disabled=true; invMsg('Creando la invitación…');
+  const { data, error } = await sb.rpc('crear_invitacion', { p_finca_id: STATE.fincaId, p_email: email });
+  if(error){ invMsg('Error: '+error.message, true); btn.disabled=false; return; }
+  if(!data || !data.ok){ invMsg((data&&data.error)||'No se pudo crear la invitación.', true); btn.disabled=false; return; }
+  STATE.invActual = { codigo:data.codigo, email:data.email };
+  invMsg('Enviando el correo…');
+  let correoOk=false, correoErr='';
+  try{
+    const r = await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:true, emailRedirectTo: enlaceInvitacion(data.codigo) } });
+    if(r.error){ correoErr=r.error.message||''; } else { correoOk=true; }
+  }catch(e){ correoErr=String(e); }
+  btn.disabled=false; invMsg('');
+  document.getElementById('inv-form').classList.add('hidden');
+  document.getElementById('inv-listo').classList.remove('hidden');
+  document.getElementById('inv-codigo').textContent = data.codigo;
+  document.getElementById('inv-listo-sub').textContent = correoOk
+    ? 'Le enviamos un correo a ' + email + '. Si no le llega (revisa spam), mándale este código por WhatsApp.'
+    : 'No se pudo enviar el correo automático' + (correoErr?' ('+correoErr+')':'') + '. Mándale el código por WhatsApp.';
+  toast('✓ Invitación creada');
+  renderInvitaciones();
+}
+async function reenviarInvitacion(id){
+  const i=(STATE.invitaciones||[]).find(x=>x.id===id); if(!i) return;
+  STATE.invActual={ codigo:i.codigo, email:i.email };
+  try{
+    const r=await sb.auth.signInWithOtp({ email:i.email, options:{ shouldCreateUser:true, emailRedirectTo: enlaceInvitacion(i.codigo) } });
+    toast(r.error ? 'No se pudo reenviar: '+r.error.message : '✓ Correo reenviado');
+  }catch(e){ toast('No se pudo reenviar'); }
+  document.getElementById('inv-listo').classList.remove('hidden');
+  document.getElementById('inv-codigo').textContent=i.codigo;
+  document.getElementById('inv-listo-sub').textContent='Invitación para '+i.email;
+}
+async function cancelarInvitacion(id, email){
+  if(!confirm('¿Cancelar la invitación de '+email+'?')) return;
+  const { error } = await sb.from('invitaciones').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  toast('Invitación cancelada'); renderInvitaciones();
+}
+async function quitarPersona(uid, email){
+  if(!confirm('¿Quitarle el acceso a '+email+'?\n\nDejará de ver la información de la finca.')) return;
+  const { data, error } = await sb.rpc('quitar_persona', { p_finca_id: STATE.fincaId, p_usuario_id: uid });
+  if(error){ toast('Error: '+error.message); return; }
+  if(!data || !data.ok){ toast((data&&data.error)||'No se pudo quitar'); return; }
+  toast('Acceso retirado'); renderFincaUsuarios();
+}
+function copiarInvitacion(){
+  const txt=mensajeInvitacion();
+  navigator.clipboard.writeText(txt).then(()=>toast('✓ Mensaje copiado'),()=>{ prompt('Copia este mensaje:', txt); });
+}
+function compartirWhatsApp(){
+  const txt=mensajeInvitacion();
+  if(navigator.share){ navigator.share({ text: txt }).catch(()=>{}); return; }
+  window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank', 'noopener');
+}
+function invInMsg(txt, err){
+  const b=document.getElementById('inv-in-msg');
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className='exp-status'+(err?' err':'');
+  b.innerHTML=(err?'':'<span class="exp-spin"></span>')+'<span>'+esc(txt)+'</span>';
+}
+async function registrarConInvitacion(){
+  const cod=(val('inv-in-codigo')||'').trim().toUpperCase();
+  const email=(val('inv-in-email')||'').trim().toLowerCase();
+  const p1=val('inv-in-pass'), p2=val('inv-in-pass2');
+  if(!cod){ invInMsg('Escribe el código que te enviaron.', true); return; }
+  if(!email || email.indexOf('@')<1){ invInMsg('Escribe tu correo.', true); return; }
+  if(!p1 || p1.length<6){ invInMsg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+  if(p1!==p2){ invInMsg('Las dos contraseñas no coinciden.', true); return; }
+  const btn=document.getElementById('inv-in-btn');
+  btn.disabled=true; invInMsg('Creando tu cuenta…');
+  let sesion=null;
+  const su = await sb.auth.signUp({ email, password:p1 });
+  if(su.error){
+    const m=(su.error.message||'').toLowerCase();
+    if(m.includes('already')){
+      invInMsg('Ya tenías cuenta. Entrando…');
+      const li = await sb.auth.signInWithPassword({ email, password:p1 });
+      if(li.error){ invInMsg('Ya existe una cuenta con ese correo, pero la contraseña no coincide. Entra desde "Ya tengo cuenta".', true); btn.disabled=false; return; }
+      sesion=li.data.session;
+    } else { invInMsg('Error: '+su.error.message, true); btn.disabled=false; return; }
+  } else {
+    sesion=su.data.session;
+    if(!sesion){ invInMsg('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve a entrar.', true); btn.disabled=false; return; }
+  }
+  invInMsg('Vinculando tu finca…');
+  const { data, error } = await sb.rpc('canjear_invitacion', { p_codigo: cod });
+  btn.disabled=false;
+  if(error){ invInMsg('Error: '+error.message, true); return; }
+  if(!data || !data.ok){ invInMsg((data&&data.error)||'No se pudo usar la invitación.', true); return; }
+  invInMsg(''); toast('✓ Bienvenido a '+(data.finca||'la finca'));
+  location.hash=''; await enterApp();
+}
+async function procesarInvitacionDeEnlace(codigo){
+  const { data, error } = await sb.rpc('canjear_invitacion', { p_codigo: codigo });
+  location.hash='';
+  if(error || !data || !data.ok){
+    show('invitacion');
+    document.getElementById('inv-in-codigo').value=codigo;
+    invInMsg((data && data.error) || 'Completa tus datos para activar la invitación.', true);
+    return false;
+  }
+  toast('✓ Ya tienes acceso a '+(data.finca||'la finca'));
+  return true;
+}
+function claveMsg(txt, err){
+  const b=document.getElementById('clave-msg');
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className='exp-status'+(err?' err':'');
+  b.innerHTML=(err?'':'<span class="exp-spin"></span>')+'<span>'+esc(txt)+'</span>';
+}
+async function guardarClave(){
+  const p1=val('clave-1'), p2=val('clave-2');
+  if(!p1 || p1.length<6){ claveMsg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+  if(p1!==p2){ claveMsg('Las dos contraseñas no coinciden.', true); return; }
+  const btn=document.getElementById('clave-btn'); btn.disabled=true; claveMsg('Guardando…');
+  const { error } = await sb.auth.updateUser({ password:p1 });
+  btn.disabled=false;
+  if(error){ claveMsg('Error: '+error.message, true); return; }
+  claveMsg(''); toast('✓ Contraseña guardada');
+  await enterApp();
+}
+
+
+/* ================= Centro de exportación =================
+   Tres formatos: Excel (.xlsx) con gráficas, informe PDF y CSV limpio.
+   Las librerías se cargan bajo demanda para no pesar en el arranque. */
+const EXP_LIB = {
+  exceljs  : 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  chart    : 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+  jspdf    : 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  autotable: 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'
+};
+const EXP_COLORS = ['#2e7d46','#7cb342','#c9a227','#4e7d8e','#8d6e63','#a8577f','#5f7a4a','#d1743a','#6b8e9f','#b0894f'];
+const EXP_ORDEN_EDAD = ['0–8 meses','9–15 meses','16–24 meses','2–3 años','3–5 años','Más de 5 años','Sin fecha'];
+let EXP_BUSY = false;
+
+function loadLib(src){
+  return new Promise((ok,fail)=>{
+    const prev = document.querySelector('script[data-lib="'+src+'"]');
+    if(prev){ prev.dataset.ready==='1' ? ok() : prev.addEventListener('load',()=>ok()); return; }
+    const s=document.createElement('script');
+    s.src=src; s.dataset.lib=src;
+    s.onload=()=>{ s.dataset.ready='1'; ok(); };
+    s.onerror=()=>fail(new Error('No se pudo descargar un componente. Revisa tu conexión.'));
+    document.head.appendChild(s);
+  });
+}
+function expStatus(msg, err){
+  const b=document.getElementById('exp-status'); if(!b) return;
+  if(!msg){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err?' err':'');
+  b.innerHTML = (err?'':'<span class="exp-spin"></span>') + '<span>'+esc(msg)+'</span>';
+}
+function expDone(nombre){
+  expStatus('');
+  try{ localStorage.setItem('vantik_exporto','1'); renderChecklist(); }catch(e){}
+  const box=document.getElementById('exp-drive');
+  if(box){ box.classList.remove('hidden'); document.getElementById('exp-drive-file').textContent=nombre; }
+  toast('✓ '+nombre+' descargado');
+}
+function abrirDrive(){ window.open('https://drive.google.com/drive/my-drive','_blank','noopener'); }
+
+function expFecha(d){
+  if(!d) return '';
+  // Las fechas ISO (AAAA-MM-DD) se interpretan en UTC y se corrían un día: las leemos tal cual.
+  const iso=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+  if(iso) return iso[3]+'/'+iso[2]+'/'+iso[1];
+  const x=new Date(d); if(isNaN(x)) return String(d);
+  return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear();
+}
+function expHoy(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+function expNombreArchivo(ext){
+  const f=(STATE.fincaName||'finca').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_');
+  return 'Vantik_'+f+'_'+expHoy()+'.'+ext;
+}
+function expRangoEdad(a){
+  const m=edadMeses(a);
+  if(m==null) return 'Sin fecha';
+  if(m<9)  return '0–8 meses';
+  if(m<16) return '9–15 meses';
+  if(m<25) return '16–24 meses';
+  if(m<37) return '2–3 años';
+  if(m<61) return '3–5 años';
+  return 'Más de 5 años';
+}
+function expTally(arr, fn, orden){
+  const m=new Map();
+  arr.forEach(a=>{ const k=String(fn(a)||'').trim() || 'Sin dato'; m.set(k,(m.get(k)||0)+1); });
+  let out=[...m.entries()];
+  if(orden) out.sort((x,y)=> orden.indexOf(x[0]) - orden.indexOf(y[0]));
+  else out.sort((x,y)=> y[1]-x[1] || String(x[0]).localeCompare(String(y[0]),'es'));
+  return out;
+}
+function expEdadTxt(m){
+  if(m==null) return '—';
+  if(m<24) return m+' meses';
+  const y=Math.floor(m/12), r=m%12;
+  return y+' año'+(y===1?'':'s')+(r?(' '+r+' m'):'');
+}
+
+/* Reúne todo lo que necesitan los tres formatos */
+function expBuildData(){
+  const A = STATE.animales.slice().sort((x,y)=>
+    String(x.codigo||'').localeCompare(String(y.codigo||''),'es',{numeric:true,sensitivity:'base'}));
+  const hembras = A.filter(esHembra);
+  const machos  = A.filter(a=>!esHembra(a));
+  const aptas   = A.filter(esApta);
+  const prenadas= A.filter(a=>/pren|gest/i.test(estadoCodeOf(a)||''));
+  const lactando= A.filter(a=>/lactan/i.test(estadoCodeOf(a)||''));
+  const edades  = A.map(a=>edadMeses(a)).filter(m=>m!=null);
+  const edadProm= edades.length ? Math.round(edades.reduce((s,m)=>s+m,0)/edades.length) : null;
+
+  const kpis = [
+    ['Total de animales', A.length],
+    ['Hembras', hembras.length],
+    ['Machos', machos.length],
+    ['Hembras aptas para reproducción', aptas.length],
+    ['Preñadas', prenadas.length],
+    ['Tasa de preñez', aptas.length ? Math.round(prenadas.length*100/aptas.length)+' %' : '—'],
+    ['En lactancia', lactando.length],
+    ['Edad promedio del hato', expEdadTxt(edadProm)]
+  ];
+
+  const resumenes = [
+    { titulo:'Composición del hato por categoría', tipo:'doughnut', col:'Categoría', data: expTally(A, catOf) },
+    { titulo:'Distribución por sexo',              tipo:'doughnut', col:'Sexo',
+      data: [['Hembras',hembras.length],['Machos',machos.length]].filter(d=>d[1]>0) },
+    { titulo:'Composición por raza',               tipo:'bar',      col:'Raza',     data: expTally(A, a=>a.raza) },
+    { titulo:'Estado reproductivo de las hembras', tipo:'doughnut', col:'Estado',   data: expTally(hembras, estadoOf) },
+    { titulo:'Animales por lote / potrero',        tipo:'bar',      col:'Lote',     data: expTally(A, a=>loteOf(a)||'Sin lote') },
+    { titulo:'Distribución por edad',              tipo:'bar',      col:'Rango de edad', data: expTally(A, expRangoEdad, EXP_ORDEN_EDAD) }
+  ].filter(r=>r.data.length);
+
+  const headers = ['Código','ID electrónico','Raza','Sexo','Nacimiento','Edad','Categoría','Estado','Lote','Fase'];
+  const filas = A.map(a=>[
+    a.codigo||'', a.id_electronico||'', a.raza||'',
+    esHembra(a)?'Hembra':'Macho',
+    expFecha(a.fecha_nacimiento),
+    edadTexto(a),
+    catOf(a)||'', estadoOf(a)||'', loteOf(a)||'Sin lote',
+    a.fase_manual ? 'Manual' : 'Automática'
+  ]);
+
+  // Tareas proyectadas de los próximos 3 meses (más lo vencido)
+  let agenda=[];
+  try{
+    agenda = construirAgenda().filter(t=>t.dias<=90).map(t=>[
+      expFecha(t.fecha.getFullYear()+'-'+String(t.fecha.getMonth()+1).padStart(2,'0')+'-'+String(t.fecha.getDate()).padStart(2,'0')),
+      t.dias<0 ? 'Vencida ('+Math.abs(t.dias)+' d)' : 'En '+t.dias+' d',
+      t.animal.codigo||'', t.titulo, t.detalle, loteOf(t.animal)||'Sin lote'
+    ]);
+  }catch(e){ agenda=[]; }
+
+  return { A, kpis, resumenes, headers, filas, agenda,
+           finca: STATE.fincaName||'Mi finca',
+           generado: new Date().toLocaleString('es-CO',{dateStyle:'long',timeStyle:'short'}) };
+}
+
+/* Dibuja una gráfica fuera de pantalla y la devuelve como PNG */
+async function expChartPNG(r){
+  const cv=document.createElement('canvas');
+  cv.width=760; cv.height=440;
+  cv.style.cssText='position:fixed;left:-99999px;top:0';
+  document.body.appendChild(cv);
+  const labels=r.data.map(d=>d[0]), vals=r.data.map(d=>d[1]);
+  const colors=labels.map((_,i)=>EXP_COLORS[i%EXP_COLORS.length]);
+  const esBar = r.tipo==='bar';
+  const ch=new Chart(cv.getContext('2d'),{
+    type:r.tipo,
+    data:{ labels, datasets:[{ label:'Animales', data:vals, backgroundColor:colors,
+      borderColor:'#ffffff', borderWidth:esBar?0:2, borderRadius:esBar?7:0, maxBarThickness:78 }] },
+    options:{ responsive:false, animation:false, devicePixelRatio:2, layout:{padding:14},
+      plugins:{
+        legend:{ display:!esBar, position:'right', labels:{ color:'#26302a', font:{size:14}, boxWidth:14, padding:12 } },
+        title:{ display:true, text:r.titulo, color:'#26302a', font:{size:18,weight:'bold'}, padding:{bottom:14} }
+      },
+      scales: esBar ? {
+        y:{ beginAtZero:true, ticks:{ precision:0, color:'#7c8579', font:{size:13} }, grid:{ color:'#ece7db' } },
+        x:{ ticks:{ color:'#26302a', font:{size:13} }, grid:{ display:false } }
+      } : {}
+    }
+  });
+  await new Promise(res=>setTimeout(res,80));
+  const out=document.createElement('canvas');
+  out.width=cv.width; out.height=cv.height;
+  const g=out.getContext('2d');
+  g.fillStyle='#ffffff'; g.fillRect(0,0,out.width,out.height);
+  g.drawImage(cv,0,0,out.width,out.height);
+  // JPEG comprimido: mantiene la calidad de la gráfica y evita archivos gigantes.
+  const png=out.toDataURL('image/jpeg', 0.92);
+  ch.destroy(); cv.remove();
+  return png;
+}
+async function expTodasLasGraficas(D){
+  await loadLib(EXP_LIB.chart);
+  const imgs=[];
+  for(const r of D.resumenes){ imgs.push({ r, png: await expChartPNG(r) }); }
+  return imgs;
+}
+function expDescargar(blob, nombre){
+  const url=URL.createObjectURL(blob), link=document.createElement('a');
+  link.href=url; link.download=nombre;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+/* ---------- Punto de entrada ---------- */
+async function exportarHato(formato){
+  if(EXP_BUSY) return;
+  if(!STATE.animales.length){ toast('No hay animales para exportar'); return; }
+  EXP_BUSY=true;
+  const box=document.getElementById('exp-drive'); if(box) box.classList.add('hidden');
+  try{
+    const D=expBuildData();
+    if(formato==='csv'){ expStatus('Preparando el archivo…'); await expCSV(D); }
+    else if(formato==='xlsx'){ expStatus('Generando el Excel con gráficas…'); await expXLSX(D); }
+    else { expStatus('Armando el informe PDF…'); await expPDF(D); }
+  }catch(e){
+    console.error(e);
+    expStatus(e.message||'No se pudo generar el archivo.', true);
+    toast('Error al exportar');
+  }finally{ EXP_BUSY=false; }
+}
+
+/* ---------- 1. CSV limpio ---------- */
+async function expCSV(D){
+  const q=v=>{ const s=(v==null?'':String(v)); return /[";\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lineas=[ D.headers.map(q).join(';') ];
+  D.filas.forEach(f=>lineas.push(f.map(q).join(';')));
+  const blob=new Blob(['﻿'+lineas.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const nombre=expNombreArchivo('csv');
+  expDescargar(blob, nombre);
+  expDone(nombre);
+}
+
+/* ---------- 2. Excel con gráficas ---------- */
+async function expXLSX(D){
+  await loadLib(EXP_LIB.exceljs);
+  const imgs = await expTodasLasGraficas(D);
+
+  const VERDE='FF2E7D46', VERDE_SUAVE='FFEAF3EC', CREMA='FFF7F4EC', TINTA='FF26302A', GRIS='FF7C8579', LINEA='FFE6E0D2';
+  const wb=new ExcelJS.Workbook();
+  wb.creator='Vantik'; wb.company='Vantik'; wb.created=new Date();
+
+  /* --- Hoja 1: Resumen --- */
+  const ws=wb.addWorksheet('Resumen',{ views:[{showGridLines:false}], properties:{defaultRowHeight:17} });
+  ws.columns=[{width:3},{width:32},{width:12},{width:12},{width:3},{width:12},{width:12},{width:12},{width:12},{width:12},{width:12},{width:12}];
+
+  ws.mergeCells('B2:H2');
+  const t1=ws.getCell('B2');
+  t1.value='VANTIK · Reporte del hato';
+  t1.font={name:'Calibri',size:22,bold:true,color:{argb:VERDE}};
+  ws.getRow(2).height=32;
+  ws.mergeCells('B3:H3');
+  ws.getCell('B3').value=D.finca;
+  ws.getCell('B3').font={size:13,bold:true,color:{argb:TINTA}};
+  ws.mergeCells('B4:H4');
+  ws.getCell('B4').value='Generado el '+D.generado;
+  ws.getCell('B4').font={size:10,italic:true,color:{argb:GRIS}};
+
+  let fila=6;
+  ws.mergeCells('B'+fila+':D'+fila);
+  const hK=ws.getCell('B'+fila);
+  hK.value='INDICADORES DEL HATO';
+  hK.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+  hK.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+  hK.alignment={vertical:'middle',indent:1};
+  ws.getRow(fila).height=22;
+  fila++;
+  D.kpis.forEach((k,i)=>{
+    const r=ws.getRow(fila);
+    r.getCell(2).value=k[0];
+    r.getCell(2).font={size:11,color:{argb:TINTA}};
+    r.getCell(2).alignment={indent:1};
+    ws.mergeCells('C'+fila+':D'+fila);
+    r.getCell(3).value=k[1];
+    r.getCell(3).font={size:12,bold:true,color:{argb:VERDE}};
+    r.getCell(3).alignment={horizontal:'center'};
+    if(i%2===0){
+      [2,3,4].forEach(c=>{ r.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}}; });
+    }
+    [2,3,4].forEach(c=>{ r.getCell(c).border={bottom:{style:'thin',color:{argb:LINEA}}}; });
+    r.height=19;
+    fila++;
+  });
+
+  fila+=2;
+  /* Bloques: tabla a la izquierda + gráfica a la derecha */
+  for(const {r,png} of imgs){
+    const inicio=fila;
+    ws.mergeCells('B'+fila+':D'+fila);
+    const h=ws.getCell('B'+fila);
+    h.value=r.titulo.toUpperCase();
+    h.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+    h.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+    h.alignment={vertical:'middle',indent:1};
+    ws.getRow(fila).height=22;
+    fila++;
+
+    const th=ws.getRow(fila);
+    ['',r.col,'Animales','% del total'].forEach((v,i)=>{ if(i>0) th.getCell(i+1).value=v; });
+    [2,3,4].forEach(c=>{
+      th.getCell(c).font={size:10,bold:true,color:{argb:VERDE}};
+      th.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE_SUAVE}};
+      th.getCell(c).alignment={horizontal:c===2?'left':'center',indent:c===2?1:0};
+      th.getCell(c).border={bottom:{style:'thin',color:{argb:LINEA}}};
+    });
+    fila++;
+
+    const total=r.data.reduce((s,d)=>s+d[1],0)||1;
+    r.data.forEach((d,i)=>{
+      const row=ws.getRow(fila);
+      row.getCell(2).value=d[0];
+      row.getCell(2).alignment={indent:1};
+      row.getCell(3).value=d[1];
+      row.getCell(3).alignment={horizontal:'center'};
+      row.getCell(4).value=d[1]/total;
+      row.getCell(4).numFmt='0.0%';
+      row.getCell(4).alignment={horizontal:'center'};
+      [2,3,4].forEach(c=>{
+        row.getCell(c).font={size:11,color:{argb:TINTA}};
+        row.getCell(c).border={bottom:{style:'hair',color:{argb:LINEA}}};
+        if(i%2===0) row.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+      });
+      row.height=18;
+      fila++;
+    });
+    const tot=ws.getRow(fila);
+    tot.getCell(2).value='Total';
+    tot.getCell(3).value=total;
+    tot.getCell(4).value=1;
+    tot.getCell(4).numFmt='0.0%';
+    [2,3,4].forEach(c=>{
+      tot.getCell(c).font={size:11,bold:true,color:{argb:VERDE}};
+      tot.getCell(c).alignment={horizontal:c===2?'left':'center',indent:c===2?1:0};
+      tot.getCell(c).border={top:{style:'thin',color:{argb:VERDE}}};
+    });
+    fila++;
+
+    const id=wb.addImage({ base64:png, extension:'jpeg' });
+    ws.addImage(id, { tl:{col:5.2,row:inicio-0.7}, ext:{width:452,height:262} });
+
+    const alto=Math.max(fila-inicio, 15);
+    fila = inicio + alto + 2;
+  }
+
+  /* --- Hoja 2: Inventario --- */
+  const inv=wb.addWorksheet('Inventario',{ views:[{state:'frozen', ySplit:1}] });
+  inv.columns=[
+    {header:'Código',width:14},{header:'ID electrónico',width:20},{header:'Raza',width:16},
+    {header:'Sexo',width:10},{header:'Nacimiento',width:14},{header:'Edad',width:16},
+    {header:'Categoría',width:16},{header:'Estado',width:20},{header:'Lote',width:20},{header:'Fase',width:12}
+  ];
+  const hr=inv.getRow(1); hr.height=26;
+  hr.eachCell(c=>{
+    c.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+    c.alignment={vertical:'middle',horizontal:'left',indent:1};
+  });
+  D.filas.forEach((f,i)=>{
+    const row=inv.addRow(f);
+    row.height=18;
+    row.eachCell(c=>{
+      c.font={size:11,color:{argb:TINTA}};
+      c.alignment={vertical:'middle',indent:1};
+      c.border={bottom:{style:'hair',color:{argb:LINEA}}};
+      if(i%2===0) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+    });
+  });
+  inv.autoFilter={ from:{row:1,column:1}, to:{row:1,column:10} };
+
+  /* --- Hoja 3: Por lote --- */
+  const porLote=wb.addWorksheet('Por lote');
+  porLote.columns=[{header:'Lote / potrero',width:26},{header:'Animales',width:12},
+    {header:'Hembras',width:12},{header:'Machos',width:12},{header:'Preñadas',width:12},{header:'Edad promedio',width:18}];
+  const hl=porLote.getRow(1); hl.height=24;
+  hl.eachCell(c=>{
+    c.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+    c.alignment={vertical:'middle',indent:1};
+  });
+  const lotes=[...new Set(D.A.map(a=>loteOf(a)||'Sin lote'))].sort((a,b)=>a.localeCompare(b,'es'));
+  lotes.forEach((L,i)=>{
+    const g=D.A.filter(a=>(loteOf(a)||'Sin lote')===L);
+    const ed=g.map(a=>edadMeses(a)).filter(m=>m!=null);
+    const row=porLote.addRow([ L, g.length, g.filter(esHembra).length, g.filter(a=>!esHembra(a)).length,
+      g.filter(a=>/pren|gest/i.test(estadoCodeOf(a)||'')).length,
+      expEdadTxt(ed.length?Math.round(ed.reduce((s,m)=>s+m,0)/ed.length):null) ]);
+    row.height=18;
+    row.eachCell(c=>{
+      c.font={size:11,color:{argb:TINTA}};
+      c.alignment={vertical:'middle',indent:1};
+      c.border={bottom:{style:'hair',color:{argb:LINEA}}};
+      if(i%2===0) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+    });
+  });
+
+  /* --- Hoja 4: Agenda --- */
+  if(D.agenda && D.agenda.length){
+    const ag=wb.addWorksheet('Agenda',{ views:[{state:'frozen', ySplit:1}] });
+    ag.columns=[{header:'Fecha',width:13},{header:'Plazo',width:16},{header:'Animal',width:14},
+                {header:'Tarea',width:30},{header:'Detalle',width:38},{header:'Lote',width:20}];
+    const ha=ag.getRow(1); ha.height=24;
+    ha.eachCell(c=>{
+      c.font={size:11,bold:true,color:{argb:'FFFFFFFF'}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:VERDE}};
+      c.alignment={vertical:'middle',indent:1};
+    });
+    D.agenda.forEach((f,i)=>{
+      const row=ag.addRow(f); row.height=18;
+      const vencida=/^Vencida/.test(f[1]);
+      row.eachCell(c=>{
+        c.font={size:11,color:{argb: vencida?'FFA2472F':TINTA}, bold:vencida};
+        c.alignment={vertical:'middle',indent:1};
+        c.border={bottom:{style:'hair',color:{argb:LINEA}}};
+        if(i%2===0) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:CREMA}};
+      });
+    });
+    ag.autoFilter={ from:{row:1,column:1}, to:{row:1,column:6} };
+  }
+
+  const buf=await wb.xlsx.writeBuffer();
+  const nombre=expNombreArchivo('xlsx');
+  expDescargar(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), nombre);
+  expDone(nombre);
+}
+
+/* ---------- 3. Informe PDF ---------- */
+async function expLogoPNG(){
+  try{
+    const res=await fetch('cow-moo.png');
+    const b=await res.blob();
+    return await new Promise(ok=>{ const fr=new FileReader(); fr.onload=()=>ok(fr.result); fr.onerror=()=>ok(null); fr.readAsDataURL(b); });
+  }catch(e){ return null; }
+}
+async function expPDF(D){
+  await loadLib(EXP_LIB.jspdf);
+  await loadLib(EXP_LIB.autotable);
+  const imgs=await expTodasLasGraficas(D);
+  const logo=await expLogoPNG();
+
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF({unit:'pt', format:'a4', compress:true});
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  const M=42;
+  const VERDE=[46,125,70], TINTA=[38,48,42], GRIS=[124,133,121], CREMA=[247,244,236];
+
+  /* Portada / encabezado */
+  doc.setFillColor(...VERDE); doc.rect(0,0,W,132,'F');
+  if(logo){ try{ doc.addImage(logo,'PNG',M,30,52,52); }catch(e){} }
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(26);
+  doc.text('Vantik', logo?M+68:M, 58);
+  doc.setFont('helvetica','normal'); doc.setFontSize(13);
+  doc.text('Reporte del hato', logo?M+68:M, 78);
+  doc.setFontSize(10);
+  doc.text(D.finca, logo?M+68:M, 98);
+  doc.text('Generado el '+D.generado, logo?M+68:M, 113);
+
+  /* Indicadores en tarjetas */
+  let y=160;
+  doc.setTextColor(...TINTA); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('Indicadores del hato', M, y);
+  y+=14;
+  const cw=(W-M*2-24)/4, chh=58;
+  D.kpis.forEach((k,i)=>{
+    const col=i%4, rowi=Math.floor(i/4);
+    const x=M+col*(cw+8), yy=y+rowi*(chh+8);
+    doc.setFillColor(...CREMA);
+    doc.roundedRect(x,yy,cw,chh,7,7,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...VERDE);
+    doc.text(String(k[1]), x+10, yy+27);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...GRIS);
+    doc.text(doc.splitTextToSize(k[0], cw-16), x+10, yy+40);
+  });
+  y += Math.ceil(D.kpis.length/4)*(chh+8) + 18;
+
+  /* Gráficas: 2 por fila */
+  const gw=(W-M*2-16)/2, gh=gw*440/760;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...TINTA);
+  doc.text('Resúmenes visuales', M, y); y+=12;
+  imgs.forEach((it,i)=>{
+    const col=i%2;
+    if(col===0 && y+gh > H-60){ doc.addPage(); y=M+10; }
+    const x=M+col*(gw+16);
+    doc.setDrawColor(230,224,210);
+    doc.roundedRect(x,y,gw,gh,6,6,'S');
+    try{ doc.addImage(it.png,'JPEG',x+2,y+2,gw-4,gh-4,undefined,'FAST'); }catch(e){}
+    if(col===1) y+=gh+14;
+  });
+  if(imgs.length%2===1) y+=gh+14;
+
+  /* Tablas de resumen */
+  D.resumenes.forEach(r=>{
+    const total=r.data.reduce((s,d)=>s+d[1],0)||1;
+    doc.autoTable({
+      startY: (y>H-140? (doc.addPage(), y=M) : y)+6,
+      head:[[r.col,'Animales','% del total']],
+      body: r.data.map(d=>[d[0], d[1], (d[1]*100/total).toFixed(1)+' %']),
+      foot:[['Total', total, '100 %']],
+      margin:{left:M,right:M},
+      styles:{font:'helvetica',fontSize:9,cellPadding:5,textColor:TINTA,lineColor:[230,224,210],lineWidth:.4},
+      headStyles:{fillColor:VERDE,textColor:255,fontStyle:'bold',fontSize:9},
+      footStyles:{fillColor:[234,243,236],textColor:VERDE,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:CREMA},
+      columnStyles:{1:{halign:'center'},2:{halign:'center'}},
+      didDrawPage:()=>{}
+    });
+    y=doc.lastAutoTable.finalY+16;
+  });
+
+  /* Agenda de los próximos 3 meses */
+  if(D.agenda && D.agenda.length){
+    doc.addPage();
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...TINTA);
+    doc.text('Agenda · próximos 3 meses', M, M+6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...GRIS);
+    doc.text('Fechas estimadas a partir de los eventos registrados. Confírmalas con tu veterinario.', M, M+20);
+    doc.autoTable({
+      startY:M+30,
+      head:[['Fecha','Plazo','Animal','Tarea','Detalle','Lote']],
+      body:D.agenda,
+      margin:{left:M,right:M},
+      styles:{font:'helvetica',fontSize:8,cellPadding:4,textColor:TINTA,lineColor:[230,224,210],lineWidth:.3,overflow:'linebreak'},
+      headStyles:{fillColor:VERDE,textColor:255,fontStyle:'bold',fontSize:8},
+      alternateRowStyles:{fillColor:CREMA},
+      columnStyles:{0:{cellWidth:52},1:{cellWidth:62},2:{cellWidth:46}},
+      didParseCell:(d)=>{
+        if(d.section==='body' && /^Vencida/.test(String(d.row.raw[1]))){
+          d.cell.styles.textColor=[162,71,47]; d.cell.styles.fontStyle='bold';
+        }
+      }
+    });
+  }
+
+  /* Inventario completo */
+  doc.addPage();
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...TINTA);
+  doc.text('Inventario completo · '+D.filas.length+' animales', M, M+6);
+  doc.autoTable({
+    startY:M+18,
+    head:[D.headers],
+    body:D.filas,
+    margin:{left:M,right:M},
+    styles:{font:'helvetica',fontSize:7.5,cellPadding:3.5,textColor:TINTA,lineColor:[230,224,210],lineWidth:.3,overflow:'linebreak'},
+    headStyles:{fillColor:VERDE,textColor:255,fontStyle:'bold',fontSize:7.5},
+    alternateRowStyles:{fillColor:CREMA},
+    columnStyles:{1:{cellWidth:70},3:{cellWidth:38},4:{cellWidth:48}}
+  });
+
+  /* Pie de página */
+  const paginas=doc.internal.getNumberOfPages();
+  for(let p=1;p<=paginas;p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...GRIS);
+    doc.text('Vantik · '+D.finca, M, H-22);
+    doc.text('Página '+p+' de '+paginas, W-M, H-22, {align:'right'});
+  }
+
+  const nombre=expNombreArchivo('pdf');
+  expDescargar(doc.output('blob'), nombre);
+  expDone(nombre);
+}
+/* Compatibilidad con la versión anterior */
+function exportCSV(){ exportarHato('csv'); }
+
+/* ================= Agenda / calendario reproductivo =================
+   Proyecta las tareas de manejo a partir de los eventos ya registrados.
+   Todos los umbrales están en días y son editables aquí. */
+const AGENDA_CFG = {
+  celo_retorno   : 21,   // vigilar si repite celo tras el servicio
+  palpacion      : 45,   // diagnóstico de preñez tras el servicio
+  secado         : 220,  // día de gestación en que se seca (≈60 antes del parto)
+  preparto       : 268,  // mover a maternidad (≈15 antes del parto)
+  gestacion      : 283,  // parto estimado
+  revision_parto : 30,   // revisión posparto
+  nuevo_servicio : 50,   // lista para volver a servir
+  destete        : 240   // destete del ternero (≈8 meses)
+};
+const AGENDA_TIPOS = {
+  celo     : { t:'Vigilar retorno a celo', s:'Si repite, no quedó preñada' },
+  palpar   : { t:'Palpar / diagnosticar preñez', s:'Confirmar si quedó preñada' },
+  secar    : { t:'Secar', s:'Fin de lactancia antes del parto' },
+  preparto : { t:'Mover a maternidad', s:'Entra en preparto' },
+  parto    : { t:'Parto estimado', s:'Vigilar de cerca' },
+  revision : { t:'Revisión posparto', s:'Chequeo del aparato reproductivo' },
+  servir   : { t:'Lista para nuevo servicio', s:'Ya cumplió el reposo posparto' },
+  destete  : { t:'Destete', s:'La cría cumple la edad de destete' }
+};
+
+function agSumar(fechaISO, dias){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(fechaISO||''));
+  if(!m) return null;
+  const d=new Date(+m[1], +m[2]-1, +m[3]);
+  d.setDate(d.getDate()+dias);
+  return d;
+}
+function agHoy(){ const n=new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+function agDias(fecha){ return Math.round((fecha - agHoy())/86400000); }
+function agUrgencia(dias){
+  if(dias < 0)  return 'r';
+  if(dias <= 7) return 'y';
+  return 'g';
+}
+function agCuando(dias){
+  if(dias === 0)  return 'Hoy';
+  if(dias === 1)  return 'Mañana';
+  if(dias === -1) return 'Ayer';
+  if(dias < 0)    return 'Hace '+Math.abs(dias)+' d';
+  return 'En '+dias+' d';
+}
+
+async function loadEventos(){
+  STATE.eventos = [];
+  STATE.eventosOk = false;
+  if(!STATE.fincaId) return;
+  const { data, error } = await sb.from('eventos_reproductivos')
+    .select('id,animal_id,tipo_evento,fecha,resultado_diagnostico')
+    .eq('finca_id', STATE.fincaId)
+    .order('fecha', {ascending:true});
+  if(error) return;
+  STATE.eventosOk = true;
+  STATE.eventos = data||[];
+}
+
+/* Devuelve la lista de tareas pendientes/vencidas ordenada por fecha */
+function construirAgenda(){
+  const tareas=[];
+  const porAnimal={};
+  (STATE.eventos||[]).forEach(e=>{ (porAnimal[e.animal_id] = porAnimal[e.animal_id] || []).push(e); });
+
+  STATE.animales.forEach(a=>{
+    const evs = porAnimal[a.id];
+    if(!evs || !evs.length) return;
+    const ult = tipo => { const f=evs.filter(e=>e.tipo_evento===tipo); return f.length ? f[f.length-1] : null; };
+    const hayDespues = (tipo, fecha) => evs.some(e=>e.tipo_evento===tipo && e.fecha > fecha);
+
+    const agrega=(clave, base, dias)=>{
+      const f=agSumar(base, dias);
+      if(!f) return;
+      const d=agDias(f);
+      if(d < -120) return;                 // no arrastrar tareas muy viejas
+      const info=AGENDA_TIPOS[clave];
+      tareas.push({ animal:a, clave, fecha:f, dias:d, urg:agUrgencia(d),
+                    titulo:info.t, detalle:info.s });
+    };
+
+    const servicio = ult('servicio');
+    const parto    = ult('parto');
+    const aborto   = ult('aborto');
+
+    /* ---- Ciclo a partir del último servicio ---- */
+    if(servicio){
+      const fs = servicio.fecha;
+      const cerrado = hayDespues('parto', fs) || hayDespues('aborto', fs);
+      if(!cerrado){
+        const palps = evs.filter(e=>e.tipo_evento==='palpacion' && e.fecha > fs);
+        const ultPalp = palps.length ? palps[palps.length-1] : null;
+
+        if(!ultPalp){
+          agrega('celo', fs, AGENDA_CFG.celo_retorno);
+          agrega('palpar', fs, AGENDA_CFG.palpacion);
+        }else if(ultPalp.resultado_diagnostico === 'positivo'){
+          if(!hayDespues('secado', fs)) agrega('secar', fs, AGENDA_CFG.secado);
+          agrega('preparto', fs, AGENDA_CFG.preparto);
+          agrega('parto',    fs, AGENDA_CFG.gestacion);
+        }else if(ultPalp.resultado_diagnostico === 'negativo'){
+          agrega('servir', ultPalp.fecha, 0);
+        }else{
+          agrega('palpar', ultPalp.fecha, 21);   // dudoso: repetir diagnóstico
+        }
+      }
+    }
+
+    /* ---- Ciclo posparto ---- */
+    if(parto && (!servicio || parto.fecha > servicio.fecha)){
+      agrega('revision', parto.fecha, AGENDA_CFG.revision_parto);
+      agrega('servir',   parto.fecha, AGENDA_CFG.nuevo_servicio);
+      agrega('destete',  parto.fecha, AGENDA_CFG.destete);
+    }
+
+    /* ---- Tras un aborto ---- */
+    if(aborto && (!servicio || aborto.fecha > servicio.fecha) && (!parto || aborto.fecha > parto.fecha)){
+      agrega('revision', aborto.fecha, AGENDA_CFG.revision_parto);
+      agrega('servir',   aborto.fecha, 60);
+    }
+  });
+
+  /* ---- Sanidad: próximas dosis y fin de periodos de retiro ---- */
+  const _porId = {};
+  STATE.animales.forEach(function(a){ _porId[a.id] = a; });
+  (STATE.sanidad||[]).forEach(function(s){
+    const a = _porId[s.animal_id];
+    if(!a) return;
+    const info = (typeof SAN_TIPOS !== 'undefined' && SAN_TIPOS[s.tipo]) || { t: s.tipo };
+    if(s.proxima_fecha){
+      const f = agSumar(s.proxima_fecha, 0);
+      if(f){ const d = agDias(f);
+        if(d >= -120) tareas.push({ animal:a, clave:'sanidad', fecha:f, dias:d, urg:agUrgencia(d),
+          titulo: info.t + (s.producto ? ' — ' + s.producto : ''), detalle:'Toca la próxima dosis' }); }
+    }
+    if(s.retiro_leche_dias){
+      const f = agSumar(s.fecha, s.retiro_leche_dias);
+      if(f){ const d = agDias(f);
+        if(d >= -30 && d <= 120) tareas.push({ animal:a, clave:'retiro', fecha:f, dias:d, urg:agUrgencia(d),
+          titulo:'Se libera la leche', detalle:'Fin del retiro por ' + (s.producto||'tratamiento') }); }
+    }
+    if(s.retiro_carne_dias){
+      const f = agSumar(s.fecha, s.retiro_carne_dias);
+      if(f){ const d = agDias(f);
+        if(d >= -30 && d <= 120) tareas.push({ animal:a, clave:'retiro', fecha:f, dias:d, urg:agUrgencia(d),
+          titulo:'Se libera la carne', detalle:'Fin del retiro por ' + (s.producto||'tratamiento') }); }
+    }
+  });
+
+  tareas.sort((x,y)=> x.fecha - y.fecha || String(x.animal.codigo||'').localeCompare(String(y.animal.codigo||''),'es',{numeric:true}));
+  return tareas;
+}
+
+function agendaFiltrada(){
+  const T = STATE.agenda||[];
+  const f = STATE.agendaFiltro||'pendientes';
+  if(f==='vencidas') return T.filter(t=>t.dias < 0);
+  if(f==='semana')   return T.filter(t=>t.dias >= 0 && t.dias <= 7);
+  if(f==='mes')      return T.filter(t=>t.dias >= 0 && t.dias <= 30);
+  if(f==='todo')     return T;
+  return T.filter(t=>t.dias <= 60);   // pendientes: lo vencido + los próximos 2 meses
+}
+function setAgendaFiltro(f){ STATE.agendaFiltro=f; renderAgenda(); }
+
+function renderAgenda(){
+  const T = STATE.agenda = construirAgenda();
+  const banner=document.getElementById('agenda-banner');
+  if(banner) banner.classList.toggle('hidden', !!(STATE.eventos||[]).length);
+
+  const vencidas = T.filter(t=>t.dias<0).length;
+  const semana   = T.filter(t=>t.dias>=0 && t.dias<=7).length;
+  const mes      = T.filter(t=>t.dias>=0 && t.dias<=30).length;
+  document.getElementById('agenda-resumen').innerHTML = `
+    <div class="ag-sum r"><div class="n">${vencidas}</div><div class="l">Vencidas</div></div>
+    <div class="ag-sum y"><div class="n">${semana}</div><div class="l">Esta semana</div></div>
+    <div class="ag-sum g"><div class="n">${mes}</div><div class="l">Este mes</div></div>`;
+
+  const filtros=[['pendientes','Pendientes'],['vencidas','Vencidas'],['semana','Esta semana'],['mes','Este mes'],['todo','Todo']];
+  const act=STATE.agendaFiltro||'pendientes';
+  document.getElementById('agenda-chips').innerHTML = filtros.map(([v,l])=>
+    `<button class="chip ${v===act?'active':''}" onclick="setAgendaFiltro('${v}')">${esc(l)}</button>`).join('');
+
+  const lista=agendaFiltrada();
+  const box=document.getElementById('agenda-lista');
+  if(!lista.length){
+    box.innerHTML = (STATE.eventos||[]).length
+      ? '<div class="empty">Nada pendiente por aquí 👌</div>'
+      : '<div class="empty">Registra un servicio o un parto y aquí verás qué viene.</div>';
+    return;
+  }
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const grupos={};
+  lista.forEach(t=>{
+    const k = t.dias<0 ? '⚠ Vencidas'
+            : t.fecha.toLocaleDateString('es-CO',{month:'long',year:'numeric'});
+    (grupos[k]=grupos[k]||[]).push(t);
+  });
+  box.innerHTML = Object.entries(grupos).map(([mesLabel,items])=>`
+    <div class="ag-mes">${esc(mesLabel)}</div>
+    <div class="ag-card">${items.map(t=>`
+      <div class="ag-row ${t.urg}" onclick="openFicha('${t.animal.id}')">
+        <div class="ag-day"><div class="d">${t.fecha.getDate()}</div><div class="m">${MES[t.fecha.getMonth()]}</div></div>
+        <div class="ag-main">
+          <div class="t">${esc(t.titulo)}</div>
+          <div class="s">${esc(t.animal.codigo||'—')}${t.animal.raza?' · '+esc(t.animal.raza):''}${loteOf(t.animal)?' · '+esc(loteOf(t.animal)):''} — ${esc(t.detalle)}</div>
+        </div>
+        <span class="ag-when ${t.urg}">${esc(agCuando(t.dias))}</span>
+      </div>`).join('')}</div>`).join('');
+}
+
+/* Resumen corto de la agenda dentro del panel de inicio */
+function renderAgendaDash(){
+  const box=document.getElementById('dash-agenda');
+  if(!box) return;
+  const T=(STATE.agenda && STATE.agenda.length ? STATE.agenda : construirAgenda());
+  STATE.agenda=T;
+  const prox=T.filter(t=>t.dias<=14).slice(0,5);
+  if(!prox.length){
+    box.innerHTML='<div class="empty" style="padding:22px">Nada urgente en las próximas dos semanas.</div>';
+    return;
+  }
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  box.innerHTML = prox.map(t=>`
+    <div class="ag-row ${t.urg}" onclick="openFicha('${t.animal.id}')">
+      <div class="ag-day"><div class="d">${t.fecha.getDate()}</div><div class="m">${MES[t.fecha.getMonth()]}</div></div>
+      <div class="ag-main">
+        <div class="t">${esc(t.titulo)}</div>
+        <div class="s">${esc(t.animal.codigo||'—')} — ${esc(t.detalle)}</div>
+      </div>
+      <span class="ag-when ${t.urg}">${esc(agCuando(t.dias))}</span>
+    </div>`).join('') +
+    (T.length>prox.length ? `<div class="ag-row" style="justify-content:center;color:var(--brand);font-weight:700;font-size:13.5px" onclick="show('agenda')">Ver toda la agenda (${T.length})</div>` : '');
+}
+
+/* ================= Crear cuenta y solicitud de acceso ================= */
+function rgMsg(txt, err){
+  const b = document.getElementById('rg-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+
+async function crearCuenta(){
+  const nombre = (val('rg-nombre')||'').trim();
+  const tel    = (val('rg-tel')||'').trim();
+  const email  = (val('rg-email')||'').trim().toLowerCase();
+  const p1     = val('rg-pass'), p2 = val('rg-pass2');
+  if(!nombre){ rgMsg('Escribe tu nombre.', true); return; }
+  if(!tel){ rgMsg('Necesitamos tu WhatsApp para contactarte.', true); return; }
+  if(!email || email.indexOf('@') < 1){ rgMsg('Escribe un correo válido.', true); return; }
+  if(!p1 || p1.length < 6){ rgMsg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+  if(p1 !== p2){ rgMsg('Las dos contraseñas no coinciden.', true); return; }
+
+  const btn = document.getElementById('rg-btn');
+  btn.disabled = true; rgMsg('Creando tu cuenta…');
+
+  const su = await sb.auth.signUp({ email: email, password: p1 });
+  if(su.error){
+    const m = (su.error.message||'').toLowerCase();
+    if(m.includes('already')){
+      const li = await sb.auth.signInWithPassword({ email: email, password: p1 });
+      if(li.error){
+        rgMsg('Ya existe una cuenta con ese correo. Entra desde "Ya tengo cuenta".', true);
+        btn.disabled = false; return;
+      }
+    } else {
+      rgMsg('Error: ' + su.error.message, true); btn.disabled = false; return;
+    }
+  }
+
+  const { data: ses } = await sb.auth.getSession();
+  if(!ses.session){
+    rgMsg('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve a entrar.', true);
+    btn.disabled = false; return;
+  }
+  STATE.user = ses.session.user;
+
+  rgMsg('Enviando tu solicitud…');
+  const { error } = await sb.from('solicitudes').insert({
+    nombre: nombre,
+    telefono: tel,
+    email: email,
+    finca: (val('rg-finca')||'').trim() || null,
+    ubicacion: (val('rg-ubic')||'').trim() || null,
+    cantidad: val('rg-cant') || null,
+    origen: 'app',
+    user_id: ses.session.user.id
+  });
+  btn.disabled = false;
+  if(error){ rgMsg('Error al enviar la solicitud: ' + error.message, true); return; }
+  rgMsg('');
+  toast('✓ Solicitud enviada');
+  await enterApp();
+}
+
+/* Pantalla de espera mientras se aprueba la cuenta */
+async function mostrarRevision(){
+  hideBoot();
+  let s = null;
+  try{
+    const { data } = await sb.from('solicitudes').select('*')
+      .eq('user_id', STATE.user.id).order('creado_en', { ascending: false }).limit(1);
+    s = (data||[])[0] || null;
+  }catch(e){}
+  STATE.miSolicitud = s;
+
+  const tit = document.getElementById('rev-titulo');
+  const txt = document.getElementById('rev-texto');
+  const box = document.getElementById('rev-datos');
+
+  if(!s){
+    tit.textContent = 'Tu cuenta aún no tiene finca';
+    txt.textContent = 'Pídele al dueño de la finca que te invite, o solicita tu propio acceso desde la página de inicio.';
+    box.innerHTML = '<div class="kv"><span class="k">Tu correo</span><span class="v">' + esc(STATE.user?.email||'—') + '</span></div>';
+    return show('revision');
+  }
+  if(s.estado === 'descartada'){
+    tit.textContent = 'Tu solicitud no fue aprobada';
+    txt.textContent = 'Si crees que fue un error, escríbenos y lo revisamos.';
+  } else {
+    tit.textContent = 'Tu solicitud está en revisión';
+    txt.textContent = 'Ya recibimos tus datos. Te activamos el acceso muy pronto y te avisamos por WhatsApp.';
+  }
+  const f = new Date(s.creado_en);
+  box.innerHTML =
+    '<div class="kv"><span class="k">Nombre</span><span class="v">' + esc(s.nombre||'—') + '</span></div>' +
+    '<div class="kv"><span class="k">Finca</span><span class="v">' + esc(s.finca||'—') + '</span></div>' +
+    '<div class="kv"><span class="k">Correo</span><span class="v">' + esc(s.email||STATE.user?.email||'—') + '</span></div>' +
+    '<div class="kv"><span class="k">Enviada</span><span class="v">' + esc(isNaN(f)?'—':f.toLocaleDateString('es-CO',{day:'2-digit',month:'long'})) + '</span></div>' +
+    '<div class="kv"><span class="k">Estado</span><span class="v">' + esc(cap(s.estado||'nueva')) + '</span></div>';
+  show('revision');
+}
+
+async function revisarEstado(){
+  toast('Revisando…');
+  await loadFinca();
+  if(STATE.fincaId){
+    await loadFincaData();
+    toast('✓ ¡Ya tienes acceso!');
+    show('inicio');
+    return;
+  }
+  await mostrarRevision();
+  toast('Todavía no está aprobada');
+}
+
+/* ================= Árbol genealógico ================= */
+function animalPorId(id){
+  if(!id) return null;
+  return (STATE.animales||[]).find(function(a){ return a.id === id; }) || null;
+}
+function genCard(a, etiqueta){
+  if(!a) return '<div class="gen-card vacio"><div class="c">Sin registro</div><div class="r">' + esc(etiqueta) + '</div></div>';
+  const extra = [a.raza, a.sexo ? (esHembra(a) ? 'hembra' : 'macho') : null].filter(Boolean).join(' · ');
+  return '<div class="gen-card v" onclick="abrirArbol(\'' + a.id + '\')">' +
+           '<div class="c">' + esc(a.codigo || '—') + '</div>' +
+           '<div class="r">' + esc(etiqueta) + (extra ? ' · ' + esc(extra) : '') + '</div>' +
+         '</div>';
+}
+function abrirArbol(id){
+  const a = animalPorId(id);
+  if(!a) return;
+  const madre = animalPorId(a.madre_id), padre = animalPorId(a.padre_id);
+  const abMM = madre ? animalPorId(madre.madre_id) : null;
+  const abMP = madre ? animalPorId(madre.padre_id) : null;
+  const abPM = padre ? animalPorId(padre.madre_id) : null;
+  const abPP = padre ? animalPorId(padre.padre_id) : null;
+  const hijos = (STATE.animales||[]).filter(function(x){ return x.madre_id === a.id || x.padre_id === a.id; });
+  const hayAbuelos = !!(abMM || abMP || abPM || abPP);
+  const hayPadres = !!(madre || padre);
+
+  let html = '';
+  if(hayAbuelos){
+    html += '<div class="gen-nivel">Abuelos</div><div class="gen-fila">' +
+            genCard(abMM,'abuela materna') + genCard(abMP,'abuelo materno') +
+            genCard(abPM,'abuela paterna') + genCard(abPP,'abuelo paterno') +
+            '</div><div class="gen-link"></div>';
+  }
+  html += '<div class="gen-nivel">Padres</div><div class="gen-fila">' +
+          genCard(madre,'madre') + genCard(padre,'padre') + '</div>';
+  html += '<div class="gen-link"></div>';
+  html += '<div class="gen-nivel">Este animal</div><div class="gen-yo">' + chapetaHTML(a.codigo) + '</div>';
+  html += '<div class="gen-nivel" style="margin-top:12px">' +
+          (hijos.length ? 'Crías (' + hijos.length + ')' : 'Crías') + '</div>';
+  if(hijos.length){
+    html += '<div class="gen-link"></div><div class="gen-fila">' +
+            hijos.map(function(h){
+              return genCard(h, (h.madre_id === a.id ? 'hijo de esta madre' : 'hijo de este padre'));
+            }).join('') + '</div>';
+  } else {
+    html += '<div class="empty" style="padding:10px">Todavía no tiene crías registradas.</div>';
+  }
+  if(!hayPadres && !hijos.length){
+    html += '<p class="field-hint" style="text-align:center;margin-top:14px">' +
+            'Para armar el árbol, edita el animal y escoge su madre y su padre.</p>';
+  }
+
+  const box = document.getElementById('modal-arbol');
+  box.innerHTML =
+    '<div class="modal-card" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Árbol de ' + esc(a.codigo || 'este animal') + '</h2>' +
+      '<button class="modal-x" onclick="cerrarArbol()">✕</button></div>' +
+      html +
+      '<p class="field-hint" style="text-align:center;margin-top:16px">Toca cualquier animal para ver su propio árbol.</p>' +
+    '</div>';
+  box.onclick = cerrarArbol;
+  box.classList.remove('hidden');
+}
+function cerrarArbol(){
+  const box = document.getElementById('modal-arbol');
+  if(box){ box.classList.add('hidden'); box.innerHTML = ''; }
+}
+
+/* ================= Recuperar contraseña ================= */
+function recMsg(txt, err){
+  const b = document.getElementById('rec-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+async function recuperarClave(){
+  const email = (val('rec-email')||'').trim().toLowerCase();
+  if(!email || email.indexOf('@') < 1){ recMsg('Escribe tu correo.', true); return; }
+  const btn = document.getElementById('rec-btn');
+  btn.disabled = true; recMsg('Enviando el enlace…');
+  const destino = location.origin + location.pathname.replace(/[^/]*$/, 'app.html');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: destino });
+  btn.disabled = false;
+  if(error){
+    recMsg('No se pudo enviar: ' + error.message + '. Pídele al dueño de la finca que te invite de nuevo.', true);
+    return;
+  }
+  recMsg('');
+  toast('✓ Revisa tu correo');
+  document.getElementById('rec-email').value = '';
+  alert('Te mandamos un enlace a ' + email + '.\n\nÁbrelo desde este mismo celular y podrás poner tu contraseña nueva. Si no llega en unos minutos, revisa la carpeta de spam.');
+  show('login');
+}
+
+/* ================= Sanidad: vacunas, desparasitación, tratamientos ================= */
+const SAN_TIPOS = {
+  vacuna:          { t:'Vacunación',            icono:'💉', repite:365 },
+  desparasitacion: { t:'Desparasitación',       icono:'🌿', repite:120 },
+  vitaminas:       { t:'Vitaminas / minerales', icono:'🧪', repite:180 },
+  tratamiento:     { t:'Tratamiento',           icono:'🩺', repite:0 },
+  revision:        { t:'Revisión veterinaria',  icono:'🔍', repite:0 }
+};
+
+function setRegistro(cual){
+  const repro = document.getElementById('bloque-repro');
+  const san   = document.getElementById('bloque-sanidad');
+  const tr = document.getElementById('tab-repro'), ts = document.getElementById('tab-sanidad');
+  if(!repro || !san) return;
+  const esSan = cual === 'sanidad';
+  repro.classList.toggle('hidden', esSan);
+  san.classList.toggle('hidden', !esSan);
+  tr.classList.toggle('active', !esSan);
+  ts.classList.toggle('active', esSan);
+  document.getElementById('reg-sub').textContent = esSan
+    ? 'Vacunas, desparasitación y tratamientos'
+    : 'Servicios, palpaciones y partos';
+  if(esSan){
+    llenarSanidadSelect();
+    document.getElementById('san-banner').classList.toggle('hidden', !!STATE.sanidadOk);
+    const f = document.getElementById('sa-fecha');
+    if(!f.value) f.value = hoyISO();
+    renderProductoSelect();
+    renderSanidadCampos();
+  }
+  window.scrollTo(0,0);
+}
+
+function llenarSanidadSelect(){
+  const sel = document.getElementById('sa-animal');
+  if(!sel) return;
+  const previo = sel.value;
+  const A = (STATE.animales||[]).slice().sort(function(x,y){
+    return String(x.codigo||'').localeCompare(String(y.codigo||''),'es',{numeric:true});
+  });
+  sel.innerHTML = A.map(function(a){
+    return '<option value="'+a.id+'">'+esc(a.codigo||'—')+(a.raza?' · '+esc(a.raza):'')+'</option>';
+  }).join('');
+  if(previo) sel.value = previo;
+}
+
+function sumarDiasISO(iso, dias){
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));
+  if(!m) return hoyISO();
+  const d = new Date(+m[1], +m[2]-1, +m[3]);
+  d.setDate(d.getDate() + dias);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+const SAN_SUGERENCIAS = {
+  vacuna: ['Aftosa','Brucelosis','Carbón sintomático','Rabia','Triple bovina','IBR / DVB'],
+  desparasitacion: ['Ivermectina 1%','Ivermectina LA','Albendazol','Levamisol','Closantel'],
+  vitaminas: ['Vitamina AD3E','Complejo B','Calcio','Fósforo','Sales mineralizadas'],
+  tratamiento: ['Oxitetraciclina','Penicilina','Antiinflamatorio','Antidiarreico'],
+  revision: ['Chequeo general','Palpación','Diagnóstico veterinario']
+};
+function renderProductoSelect(){
+  const sel = document.getElementById('sa-prod-sel');
+  if(!sel) return;
+  const tipo = val('sa-tipo');
+  const usados = [...new Set((STATE.sanidad||[])
+    .filter(function(s){ return s.tipo === tipo; })
+    .map(function(s){ return (s.producto||'').trim(); }).filter(Boolean))]
+    .sort(function(a,b){ return a.localeCompare(b,'es'); });
+  const sug = (SAN_SUGERENCIAS[tipo]||[]).filter(function(p){
+    return !usados.some(function(u){ return u.toLowerCase() === p.toLowerCase(); }); });
+  let html = '';
+  if(usados.length) html += '<optgroup label="Los que ya usas">' +
+    usados.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('') + '</optgroup>';
+  if(sug.length) html += '<optgroup label="Comunes">' +
+    sug.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('') + '</optgroup>';
+  html += '<option value="__nuevo__">+ Escribir otro producto…</option>';
+  sel.innerHTML = html;
+  onProductoChange();
+}
+function onProductoChange(){
+  const sel = document.getElementById('sa-prod-sel');
+  const inp = document.getElementById('sa-producto');
+  if(!sel || !inp) return;
+  const nuevo = sel.value === '__nuevo__';
+  inp.classList.toggle('hidden', !nuevo);
+  if(nuevo){ inp.value=''; inp.focus(); }
+}
+function productoElegido(){
+  const sel = document.getElementById('sa-prod-sel');
+  if(sel && sel.value && sel.value !== '__nuevo__') return sel.value;
+  return (val('sa-producto')||'').trim();
+}
+function renderSanidadCampos(){
+  const tipo = val('sa-tipo');
+  const box = document.getElementById('sa-extra');
+  if(!box) return;
+  const rep = (SAN_TIPOS[tipo]||{}).repite || 0;
+  let html = '';
+  if(rep){
+    html += '<label>Próxima aplicación</label>' +
+            '<input id="sa-proxima" type="date" value="' + sumarDiasISO(val('sa-fecha')||hoyISO(), rep) + '">' +
+            '<p class="field-hint">Se agrega sola a la agenda. Puedes cambiar la fecha.</p>';
+  }
+  if(tipo === 'tratamiento'){
+    html += '<div class="peso-row" style="margin-top:12px">' +
+            '<div><label>Retiro leche (días)</label><input id="sa-rleche" type="number" min="0" step="1" placeholder="0"></div>' +
+            '<div><label>Retiro carne (días)</label><input id="sa-rcarne" type="number" min="0" step="1" placeholder="0"></div>' +
+            '</div><p class="field-hint">Días en que la leche o la carne no se pueden vender. Vantik te avisa cuándo se libera.</p>';
+  }
+  box.innerHTML = html;
+}
+
+async function loadSanidad(){
+  STATE.sanidad = []; STATE.sanidadOk = false;
+  if(!STATE.fincaId) return;
+  const { data, error } = await sb.from('sanidad')
+    .select('id,animal_id,tipo,producto,fecha,proxima_fecha,retiro_leche_dias,retiro_carne_dias,observaciones')
+    .eq('finca_id', STATE.fincaId).order('fecha', { ascending: true });
+  if(error) return;
+  STATE.sanidadOk = true; STATE.sanidad = data || [];
+}
+function sanidadDe(animalId){
+  return (STATE.sanidad||[]).filter(function(s){ return s.animal_id === animalId; });
+}
+function saMsg(txt, err){
+  const b = document.getElementById('sa-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+
+async function guardarSanidad(){
+  const animal_id = val('sa-animal');
+  const tipo = val('sa-tipo');
+  const producto = productoElegido();
+  const fecha = val('sa-fecha') || hoyISO();
+  if(!animal_id){ saMsg('Escoge el animal.', true); return; }
+  if(!producto){ saMsg('Escribe qué producto le aplicaste.', true); return; }
+  const fila = { animal_id:animal_id, finca_id:STATE.fincaId, tipo:tipo, producto:producto,
+                 fecha:fecha, observaciones:(val('sa-obs')||'').trim() || null };
+  const prox = val('sa-proxima'); if(prox) fila.proxima_fecha = prox;
+  const rl = val('sa-rleche'), rc = val('sa-rcarne');
+  if(rl) fila.retiro_leche_dias = +rl;
+  if(rc) fila.retiro_carne_dias = +rc;
+  const btn = document.getElementById('btn-sa');
+  btn.disabled = true; saMsg('Guardando…');
+  const { error } = await sb.from('sanidad').insert(fila);
+  btn.disabled = false;
+  if(error){
+    if(/relation|does not exist|not find/i.test(error.message||'')){
+      document.getElementById('san-banner').classList.remove('hidden');
+      saMsg('Falta crear la tabla sanidad en la base de datos.', true);
+    } else saMsg('Error: ' + error.message, true);
+    return;
+  }
+  saMsg('');
+  const a = (STATE.animales||[]).find(function(x){ return x.id === animal_id; });
+  toast('✓ ' + ((SAN_TIPOS[tipo]||{}).t || 'Registro') + ' guardada en ' + (a ? a.codigo : 'el animal'));
+  document.getElementById('sa-producto').value = '';
+  document.getElementById('sa-obs').value = '';
+  renderProductoSelect();
+  await refreshData();
+  setRegistro('sanidad');
+}
+
+function fichaSanidad(a){
+  if(!STATE.sanidadOk) return '';
+  const S = sanidadDe(a.id).slice().reverse();
+  if(!S.length){
+    return '<div class="section-title">Sanidad</div>' +
+      '<div class="card" style="padding:16px"><div class="empty" style="padding:6px">Sin registros todavía.</div>' +
+      '<button class="btn line" style="margin-top:12px" onclick="registrarSanidadA(\'' + a.id + '\')">Registrar vacuna o tratamiento</button></div>';
+  }
+  const filas = S.slice(0,6).map(function(s){
+    const info = SAN_TIPOS[s.tipo] || { t:s.tipo, icono:'•' };
+    let extra = expFecha(s.fecha);
+    if(s.proxima_fecha){
+      const d = Math.ceil((new Date(s.proxima_fecha) - agHoy())/86400000);
+      extra += ' · próxima ' + (d < 0 ? 'vencida' : 'en ' + d + ' d');
+    }
+    return '<div class="row" style="cursor:default"><div class="avatar">' + info.icono + '</div>' +
+      '<div class="main"><div class="t">' + esc(s.producto || info.t) + '</div>' +
+      '<div class="s">' + esc(info.t) + ' · ' + esc(extra) + '</div></div></div>';
+  }).join('');
+  return '<div class="section-title">Sanidad</div><div class="card" style="overflow:hidden">' + filas +
+    '<div class="row" style="justify-content:center;color:var(--brand);font-weight:700;font-size:13.5px" onclick="registrarSanidadA(\'' + a.id + '\')">+ Registrar otra</div></div>';
+}
+function registrarSanidadA(id){
+  show('registrar'); setRegistro('sanidad');
+  const sel = document.getElementById('sa-animal');
+  if(sel) sel.value = id;
+}
+function irAFichaDelEvento(){
+  const id = val('ev-animal');
+  if(id) openFicha(id);
+}
+
+/* ================= Chapeta y pesos =================
+   El peso se guarda siempre en kilos. Si la finca trabaja en arrobas,
+   solo cambia cómo se muestra y cómo se escribe (1 @ = 12,5 kg). */
+const ARROBA = 12.5;
+
+function chapetaHTML(codigo){
+  const txt = String(codigo == null || codigo === '' ? '—' : codigo);
+  const cls = txt.length > 5 ? ' l' : (txt.length > 3 ? ' m' : '');
+  return '<div class="chapeta' + cls + '">' +
+           '<div class="chapeta-pin"><i></i></div>' +
+           '<div class="chapeta-body"><span>' + esc(txt) + '</span></div>' +
+         '</div>';
+}
+
+function unidadPeso(){
+  if(STATE.unidadPeso) return STATE.unidadPeso;
+  try{ return localStorage.getItem('vantik_unidad_' + STATE.fincaId) || ''; }catch(e){ return ''; }
+}
+function guardarUnidad(u){
+  STATE.unidadPeso = u;
+  try{ localStorage.setItem('vantik_unidad_' + STATE.fincaId, u); }catch(e){}
+  if(STATE.currentFicha) _openFicha(STATE.currentFicha, true);
+  toast(u === 'arroba' ? 'Pesos en arrobas' : 'Pesos en kilos');
+}
+function pesoTxt(kg){
+  if(kg == null) return '—';
+  if(unidadPeso() === 'arroba') return (kg / ARROBA).toFixed(1).replace('.', ',') + ' @';
+  return (Math.round(kg * 10) / 10).toString().replace('.', ',') + ' kg';
+}
+function aKilos(v){
+  const n = parseFloat(String(v).replace(',', '.'));
+  if(isNaN(n) || n <= 0) return null;
+  return unidadPeso() === 'arroba' ? n * ARROBA : n;
+}
+function hoyISO(){
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0');
+}
+
+async function loadPesajes(){
+  STATE.pesajes = [];
+  STATE.pesajesOk = false;
+  if(!STATE.fincaId) return;
+  const { data, error } = await sb.from('pesajes')
+    .select('id,animal_id,fecha,peso_kg')
+    .eq('finca_id', STATE.fincaId)
+    .order('fecha', { ascending: true });
+  if(error) return;
+  STATE.pesajesOk = true;
+  STATE.pesajes = data || [];
+}
+function pesajesDe(animalId){
+  return (STATE.pesajes || []).filter(p => p.animal_id === animalId);
+}
+
+function fichaPeso(a){
+  if(!STATE.pesajesOk){
+    return '<div class="section-title">Peso</div>' +
+      '<div class="card" style="padding:16px"><div class="empty" style="padding:6px">' +
+      'Falta crear la tabla <b>pesajes</b> en la base de datos. Corre el script <b>pesos.sql</b> y recarga.' +
+      '</div></div>';
+  }
+  const u = unidadPeso();
+  if(!u){
+    return '<div class="section-title">Peso</div>' +
+      '<div class="card" style="padding:16px 0 0">' +
+        '<p class="field-hint" style="padding:0 16px 12px;margin:0">¿En qué unidad pesas los animales de esta finca?</p>' +
+        '<div class="unidad-sel">' +
+          '<button onclick="guardarUnidad(\'kg\')">Kilos (kg)</button>' +
+          '<button onclick="guardarUnidad(\'arroba\')">Arrobas (@)</button>' +
+        '</div></div>';
+  }
+
+  const P = pesajesDe(a.id);
+  const ult = P.length ? P[P.length-1] : null;
+  const pen = P.length > 1 ? P[P.length-2] : null;
+
+  let hero;
+  if(ult){
+    let gdp = '';
+    if(pen){
+      const dias = Math.max(1, Math.round((new Date(ult.fecha) - new Date(pen.fecha)) / 86400000));
+      const g = (ult.peso_kg - pen.peso_kg) / dias;
+      const gTxt = (g >= 0 ? '+' : '') + (Math.round(g*1000)/1000).toFixed(3).replace('.', ',');
+      gdp = '<div class="peso-gdp"><div class="lab">Ganancia diaria</div>' +
+            '<div class="v' + (g < 0 ? ' neg' : '') + '">' + gTxt + ' kg/día</div>' +
+            '<div class="fec">en ' + dias + ' día' + (dias===1?'':'s') + '</div></div>';
+    }
+    hero = '<div class="peso-hero">' +
+             '<div><div class="lab">Peso anterior</div>' +
+             '<div class="big">' + esc(pesoTxt(ult.peso_kg)) + '</div>' +
+             '<div class="fec">' + esc(expFecha(ult.fecha)) + '</div></div>' +
+             gdp +
+           '</div>';
+  } else {
+    hero = '<div class="peso-hero"><div><div class="lab">Peso anterior</div>' +
+           '<div class="big" style="color:var(--muted)">Sin registro</div>' +
+           '<div class="fec">Este sería su primer pesaje</div></div></div>';
+  }
+
+  const unidadLab = u === 'arroba' ? 'arrobas (@)' : 'kilos (kg)';
+  const form = '<div class="peso-form">' +
+      '<div class="peso-row">' +
+        '<div><label>Peso nuevo en ' + unidadLab + '</label>' +
+        '<input id="pw-valor" type="number" inputmode="decimal" step="0.1" min="1" placeholder="Ej: ' + (u==='arroba'?'26':'325') + '"></div>' +
+        '<div><label>Fecha</label><input id="pw-fecha" type="date" value="' + hoyISO() + '"></div>' +
+      '</div>' +
+      '<button class="btn" style="margin-top:12px" id="pw-btn" onclick="guardarPeso(\'' + a.id + '\')">Guardar peso</button>' +
+      '<div id="pw-msg" class="exp-status hidden"></div>' +
+    '</div>';
+
+  let hist = '';
+  if(P.length){
+    const ultimos = P.slice(-6).reverse();
+    hist = '<div class="peso-hist">' + ultimos.map(function(p){
+      return '<div class="h"><b>' + esc(pesoTxt(p.peso_kg)) + '</b><span>' + esc(expFecha(p.fecha)) + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  return '<div class="section-title">Peso</div><div class="card" style="overflow:hidden">' + hero + form + hist + '</div>';
+}
+
+function pwMsg(txt, err){
+  const b = document.getElementById('pw-msg');
+  if(!b) return;
+  if(!txt){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.className = 'exp-status' + (err ? ' err' : '');
+  b.innerHTML = (err ? '' : '<span class="exp-spin"></span>') + '<span>' + esc(txt) + '</span>';
+}
+
+async function guardarPeso(animalId){
+  const kg = aKilos(val('pw-valor'));
+  const fecha = val('pw-fecha') || hoyISO();
+  if(kg == null){ pwMsg('Escribe un peso válido.', true); return; }
+  if(kg > 2000){ pwMsg('Ese peso parece muy alto. Revísalo.', true); return; }
+  const btn = document.getElementById('pw-btn');
+  btn.disabled = true; pwMsg('Guardando…');
+  const { error } = await sb.from('pesajes').insert({
+    animal_id: animalId, finca_id: STATE.fincaId, fecha: fecha, peso_kg: kg
+  });
+  btn.disabled = false;
+  if(error){ pwMsg('Error: ' + error.message, true); return; }
+  pwMsg('');
+  toast('✓ Peso guardado: ' + pesoTxt(kg));
+  const scroll = window.scrollY;
+  await loadPesajes();
+  STATE.agenda = null;
+  _openFicha(animalId, true);
+  // Se vuelve al mismo punto: no te saca del animal
+  requestAnimationFrame(function(){ window.scrollTo(0, scroll); });
+  renderDashboard(); renderAnimals(); renderAgendaDash();
+}
+
+/* Bloque de tareas proyectadas dentro de la ficha del animal */
+function fichaAgenda(a){
+  const T=(STATE.agenda && STATE.agenda.length ? STATE.agenda : construirAgenda());
+  STATE.agenda=T;
+  const mias=T.filter(t=>t.animal.id===a.id && t.dias<=120).slice(0,5);
+  if(!mias.length) return '';
+  const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `<div class="section-title">Qué viene</div>
+    <div class="ag-card">${mias.map(t=>`
+      <div class="ag-row ${t.urg}" style="cursor:default">
+        <div class="ag-day"><div class="d">${t.fecha.getDate()}</div><div class="m">${MES[t.fecha.getMonth()]}</div></div>
+        <div class="ag-main"><div class="t">${esc(t.titulo)}</div><div class="s">${esc(t.detalle)}</div></div>
+        <span class="ag-when ${t.urg}">${esc(agCuando(t.dias))}</span>
+      </div>`).join('')}</div>`;
+}
+
+/* ================= Helpers de catálogo ================= */
+function estadoOf(a){
+  const id = a.estado_actual_id ?? a.estado_id ?? a.estado;
+  const e = STATE.estados.find(x=> x.id===id || x.codigo===id);
+  return e ? (e.nombre||e.codigo) : (id||'—');
+}
+function estadoCodeOf(a){
+  const id = a.estado_actual_id ?? a.estado_id ?? a.estado;
+  const e = STATE.estados.find(x=> x.id===id || x.codigo===id);
+  return e ? (e.codigo||'') : (id||'');
+}
+function loteOf(a){
+  const id = a.lote_id ?? a.lote;
+  const l = STATE.lotes.find(x=> x.id===id);
+  return l ? l.nombre : '';
+}
+function catOf(a){
+  const id = a.categoria_id ?? a.categoria;
+  const c = STATE.categorias.find(x=> x.id===id || x.codigo===id);
+  return c ? (c.nombre||c.codigo) : '';
+}
+function badgeClass(code){
+  code=(code||'').toString().toLowerCase();
+  if(code.includes('pren')) return 'g';
+  if(code.includes('vaci')||code.includes('repet')||code.includes('problema')||code.includes('descart')) return 'r';
+  if(code.includes('servi')||code.includes('sincron')||code.includes('preparto')||code.includes('novilla')) return 'y';
+  return '';
+}
+
+/* ================= Fases por edad (calendario) =================
+   Umbrales por defecto en MESES (editables; validar con veterinario).
+   Reglas: fases jóvenes automáticas por edad; vaca=por parto; toro=por uso. */
+const FASE_CFG = { hembra_ternera_max:8, macho_ternero_max:8, macho_novillo_max:24, edad_entorar:15 };
+const TERMINALES = ['vaca','toro','vaca_desc'];       // no se auto-cambian por edad
+const REPRO_RX = /serv|pren|parto|sincron|abort|repet|entor|preparto|gest/i;
+// Estados propios de hembra (para ocultarlos en machos).
+const HEMBRA_RX = /vaci|serv|pren|parto|parida|seca|lactan|abort|sincron|repet|entor|preparto|gest/i;
+function esEstadoRepro(code){ return REPRO_RX.test(code||''); }
+function esHembra(a){ return (a.sexo||'').toLowerCase().startsWith('h'); }
+function edadMeses(a){
+  if(!a || !a.fecha_nacimiento) return null;
+  const b=new Date(a.fecha_nacimiento); if(isNaN(b)) return null;
+  const n=new Date();
+  let m=(n.getFullYear()-b.getFullYear())*12 + (n.getMonth()-b.getMonth());
+  if(n.getDate()<b.getDate()) m--;
+  return m<0?0:m;
+}
+function edadTexto(a){
+  const m=edadMeses(a); if(m==null) return '—';
+  if(m<24) return m+' mes'+(m===1?'':'es');
+  const y=Math.floor(m/12), r=m%12;
+  return y+' año'+(y===1?'':'s')+(r?(' '+r+' m'):'');
+}
+function faseEsperada(a){
+  const m=edadMeses(a); if(m==null) return null;
+  if(esHembra(a)) return m<FASE_CFG.hembra_ternera_max ? 'ternera' : 'novilla';
+  return m<FASE_CFG.macho_ternero_max ? 'ternero' : 'novillo';
+}
+// ¿Apto para reproducción? (hembra vaca, o novilla que alcanzó edad de entorar)
+function esApta(a){
+  if(!a || !esHembra(a)) return false;
+  const cat=a.categoria_id;
+  if(cat==='vaca') return true;
+  if(cat==='novilla'){ const m=edadMeses(a); return m==null || m>=FASE_CFG.edad_entorar; }
+  return false;
+}
+// Recalcula fases jóvenes desde la edad. Respeta manuales y terminales.
+async function autoSyncFases(){
+  const pend=[];
+  for(const a of STATE.animales){
+    if(a.fase_manual || TERMINALES.includes(a.categoria_id)) continue;
+    const esp=faseEsperada(a);
+    if(esp && esp!==a.categoria_id){ a.categoria_id=esp; a.__esp=esp; pend.push(a); }
+  }
+  for(const a of pend){ try{ await sb.from('animales').update({categoria_id:a.__esp}).eq('id',a.id); }catch(e){} delete a.__esp; }
+  return pend.length;
+}
+// Marcar un macho como toro reproductor (por uso).
+async function markToro(id){
+  const { error } = await sb.from('animales').update({categoria_id:'toro',fase_manual:true}).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  toast('✓ Marcado como toro'); await refreshData(); openFicha(id);
+}
+
+/* ================= Dashboard ================= */
+function renderDashboard(){
+  document.getElementById('dash-loading').classList.add('hidden');
+  document.getElementById('dash-body').classList.remove('hidden');
+  const A=STATE.animales;
+  const fem=A.filter(esHembra).length, mac=A.length-fem;
+  const byCat=code=>A.filter(a=>a.categoria_id===code).length;
+  const codeCount=c=>A.filter(a=>estadoCodeOf(a).toLowerCase().includes(c)).length;
+  const novAptas=A.filter(a=>a.categoria_id==='novilla'&&esApta(a)).length;
+  const proxParto=A.filter(a=>{const c=estadoCodeOf(a).toLowerCase();return c.includes('preparto');}).length;
+
+  const ICON={
+    total:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+    hembra:'<circle cx="12" cy="8" r="5"/><path d="M12 13v8M9 18h6"/>',
+    macho:'<circle cx="10" cy="14" r="5"/><path d="M15 9l5-5M16 4h4v4"/>',
+    pren:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5l3 2"/>',
+    star:'<path d="M12 3l2.4 5.8 6.1.5-4.6 4 1.4 6L12 16l-5.3 3.3 1.4-6-4.6-4 6.1-.5z"/>',
+    lote:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/>'
+  };
+  const stats=[
+    ['total', A.length, 'Animales activos', ''],
+    ['hembra', fem, 'Hembras', 'g'],
+    ['macho', mac, 'Machos', 'b'],
+    ['pren', codeCount('pren'), 'Preñadas', 'g'],
+    ['star', novAptas, 'Novillas aptas', 'y'],
+    ['lote', STATE.lotes.length, 'Lotes', '']
+  ];
+  document.getElementById('dash-stats').innerHTML = stats.map(([ic,v,lab,cl],i)=>
+    `<div class="scard ${cl}" style="animation-delay:${i*60}ms">
+       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[ic]}</svg></div>
+       <div class="n" data-to="${v}">0</div><div class="l">${esc(lab)}</div></div>`).join('');
+
+  const fases=[['Terneras','ternera'],['Novillas','novilla'],['Vacas','vaca'],['Terneros','ternero'],['Novillos','novillo'],['Toros','toro'],['Descarte','vaca_desc']];
+  const totalC=A.length||1;
+  const compRows=fases.map(([lab,code])=>[lab,byCat(code)]).filter(x=>x[1]>0);
+  document.getElementById('dash-comp').innerHTML = compRows.length
+    ? compRows.map(([lab,v])=>barRow(lab,v,totalC,'var(--brand)')).join('')
+    : '<div class="empty" style="padding:18px">Sin animales aún</div>';
+
+  const counts={};
+  A.forEach(a=>{ const n=estadoOf(a); counts[n]=(counts[n]||0)+1; });
+  const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const totalE=A.length||1;
+  document.getElementById('dash-estados').innerHTML = entries.length
+    ? entries.map(([k,v])=>barRow(k,v,totalE,'var(--accent)')).join('')
+    : '<div class="empty" style="padding:18px">Sin datos de estado</div>';
+
+  const al=document.getElementById('dash-alertas');
+  let cards='';
+  if(novAptas) cards+=alertCard(`${novAptas} novilla(s) aptas para entorar`,'En edad de primer servicio','y');
+  if(proxParto) cards+=alertCard(`${proxParto} próxima(s) a parir`,'En preparto','g');
+  const problema=A.filter(a=>{const c=estadoCodeOf(a).toLowerCase();return c.includes('problema')||c.includes('repet');}).length;
+  if(problema) cards+=alertCard(`${problema} con problema/repetidora`,'Requieren revisión','r');
+  al.innerHTML = cards || '<div class="empty">Sin alertas por ahora 👌</div>';
+
+  setTimeout(()=>{
+    document.querySelectorAll('#dash-stats .n[data-to]').forEach(el=>countUp(el,+el.dataset.to));
+    document.querySelectorAll('.bar-fill[data-w]').forEach(el=>{ el.style.width=el.dataset.w+'%'; });
+  }, 60);
+}
+function barRow(label,val,total,color){
+  const pct=Math.round(val/(total||1)*100);
+  return `<div class="bar-row"><span class="bl">${esc(label)}</span>`+
+    `<span class="bar-track"><span class="bar-fill" data-w="${pct}" style="background:${color}"></span></span>`+
+    `<span class="bar-val">${val}</span></div>`;
+}
+function countUp(el,to){
+  const dur=650, t0=performance.now();
+  function step(){ const p=Math.min(1,(performance.now()-t0)/dur); el.textContent=Math.round(p*to); if(p<1) requestAnimationFrame(step); }
+  step();
+  setTimeout(()=>{ el.textContent=to; }, dur+120);   // garantía del valor final aunque se pause el rAF
+}
+function alertCard(t,s,cl){
+  return `<div class="card" style="padding:13px 14px;margin-bottom:10px;display:flex;gap:11px;align-items:center">
+    <span class="badge ${cl}">!</span><div><div style="font-weight:700">${esc(t)}</div><div style="color:var(--muted);font-size:13px">${esc(s)}</div></div></div>`;
+}
+
+/* ================= Animales list ================= */
+function renderFilters(){
+  const fl=document.getElementById('filter-lote');
+  fl.innerHTML = chip('Todos los lotes','', STATE.loteFilter==='','lote') +
+    STATE.lotes.map(l=>chip(l.nombre,l.id, STATE.loteFilter===l.id,'lote')).join('');
+  const codes=[...new Set(STATE.animales.map(a=>estadoCodeOf(a)).filter(Boolean))];
+  const fe=document.getElementById('filter-estado');
+  fe.innerHTML = chip('Todos','', STATE.estadoFilter==='','estado') +
+    codes.map(c=>{const e=STATE.estados.find(x=>x.codigo===c);const n=e?e.nombre:c;
+      return chip(n,c, STATE.estadoFilter===c,'estado');}).join('');
+}
+function chip(label,val,active,kind){
+  return `<div class="chip ${active?'active':''}" onclick="setFilter('${kind}','${val}')">${esc(label)}</div>`;
+}
+function setFilter(kind,val){
+  if(kind==='lote') STATE.loteFilter=val; else STATE.estadoFilter=val;
+  renderFilters(); renderAnimals();
+}
+function renderAnimals(){
+  document.getElementById('anim-loading').classList.add('hidden');
+  const list=document.getElementById('anim-list');
+  list.classList.remove('hidden');
+  const q=(document.getElementById('anim-search').value||'').toLowerCase();
+  let A=STATE.animales.filter(a=>{
+    if(STATE.loteFilter && (a.lote_id??a.lote)!==STATE.loteFilter) return false;
+    if(STATE.estadoFilter && estadoCodeOf(a)!==STATE.estadoFilter) return false;
+    if(q){
+      const hay=`${a.codigo||''} ${a.id_electronico||''} ${a.raza||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  document.getElementById('anim-count').textContent=`${A.length} animal(es)`;
+  if(!A.length){ list.innerHTML='<div class="empty">No hay animales con esos filtros</div>'; return; }
+  list.innerHTML = A.map(a=>{
+    const code=estadoCodeOf(a);
+    return `<div class="row" onclick="openFicha('${a.id}')">
+      <div class="avatar chap" data-n="${Math.min(String(a.codigo||'?').length,9)}">${esc((a.codigo||'?').toString())}</div>
+      <div class="main">
+        <div class="t">${esc(a.codigo||'Sin código')}</div>
+        <div class="s">${esc(a.raza||'—')} · ${esc(catOf(a)||a.sexo||'')} ${loteOf(a)?'· '+esc(loteOf(a)):''}</div>
+      </div>
+      <span class="badge ${badgeClass(code)}">${esc(estadoOf(a))}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ================= Ficha ================= */
+let fichaStack=[];
+function openFicha(id){ _openFicha(id,false); }
+function fichaBack(){
+  if(fichaStack.length){ _openFicha(fichaStack.pop(), true); }
+  else { STATE.currentFicha=null; show('animales'); }
+}
+function _openFicha(id, isBack){
+  const a=STATE.animales.find(x=>x.id==id); if(!a) return;
+  if(!isBack && STATE.currentFicha && STATE.currentFicha!=id) fichaStack.push(STATE.currentFicha);
+  STATE.currentFicha=id;
+  const madre=STATE.animales.find(x=>x.id==(a.madre_id));
+  const padre=STATE.animales.find(x=>x.id==(a.padre_id));
+  const code=estadoCodeOf(a);
+  const gLink=(rel,rid)=> rel ? `<a onclick="openFicha('${rel.id}')" style="color:var(--brand);cursor:pointer;text-decoration:underline;font-weight:700">${esc(rel.codigo)} ›</a>` : (rid?'#'+rid:'—');
+  const body=document.getElementById('ficha-body');
+  body.innerHTML=`
+    <div class="ficha-head">
+      ${chapetaHTML(a.codigo)}
+      <div>
+        <div style="text-align:center"><span class="badge ${badgeClass(code)}">${esc(estadoOf(a))}</span></div>
+        <div class="sub2">${esc([a.raza, catOf(a), loteOf(a)].filter(Boolean).join(' · '))}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:4px 16px">
+      <div class="kv"><span class="k">ID electrónico</span><span class="v">${esc(a.id_electronico||'—')}</span></div>
+      <div class="kv"><span class="k">Raza</span><span class="v">${esc(a.raza||'—')}</span></div>
+      <div class="kv"><span class="k">Sexo</span><span class="v">${esc(cap(a.sexo))}</span></div>
+      <div class="kv"><span class="k">Categoría / fase</span><span class="v">${esc(catOf(a)||'—')} <span style="color:var(--muted);font-weight:400">· ${a.fase_manual?'manual':'auto'}</span></span></div>
+      <div class="kv"><span class="k">Nacimiento</span><span class="v">${esc(a.fecha_nacimiento||'—')}</span></div>
+      <div class="kv"><span class="k">Edad</span><span class="v">${esc(edadTexto(a))}</span></div>
+      <div class="kv"><span class="k">Lote</span><span class="v">${esc(loteOf(a)||'—')}</span></div>
+    </div>
+    ${fichaPeso(a)}
+    ${fichaSanidad(a)}
+    ${fichaAgenda(a)}
+    <div class="section-title">Genealogía</div>
+    <div class="card" style="padding:4px 16px">
+      <div class="kv"><span class="k">Madre</span><span class="v">${gLink(madre,a.madre_id)}</span></div>
+      <div class="kv"><span class="k">Padre</span><span class="v">${gLink(padre,a.padre_id)}</span></div>
+    </div>
+    <button class="btn line" style="margin-top:10px" onclick="abrirArbol('${a.id}')">Ver árbol genealógico</button>
+    <button class="btn line" style="margin-top:18px" onclick="openEditAnimal('${a.id}')">Editar animal (estado, lote, datos)</button>
+    <button class="btn" style="margin-top:10px" onclick="prefillEvent('${a.id}')">Registrar evento a este animal</button>
+    ${(!esHembra(a) && a.categoria_id==='novillo') ? `<button class="btn line" style="margin-top:10px" onclick="markToro('${a.id}')">Marcar como toro (reproductor)</button>` : ''}
+  `;
+  show('ficha');
+}
+
+/* ================= Eventos ================= */
+function fillEventAnimalSelect(){
+  const sel=document.getElementById('ev-animal');
+  sel.innerHTML=STATE.animales.map(a=>`<option value="${a.id}">${esc(a.codigo||a.id)}</option>`).join('');
+  if(!document.getElementById('ev-fecha').value)
+    document.getElementById('ev-fecha').value=new Date().toISOString().slice(0,10);
+  renderEventTipos();
+}
+function onEventAnimalChange(){ renderEventTipos(); }
+// Muestra los tipos de evento solo si el animal es una hembra apta.
+function renderEventTipos(){
+  const a=STATE.animales.find(x=>x.id==document.getElementById('ev-animal').value);
+  const sel=document.getElementById('ev-tipo');
+  const btn=document.getElementById('btn-ev');
+  const note=document.getElementById('ev-noapt');
+  const all=[['servicio','Servicio / IATF'],['palpacion','Palpación / diagnóstico'],['parto','Parto'],['aborto','Aborto'],['secado','Secado']];
+  if(esApta(a)){
+    sel.innerHTML=all.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('');
+    sel.disabled=false; btn.disabled=false; btn.style.opacity='';
+    note.classList.add('hidden');
+  }else{
+    sel.innerHTML='<option value="">—</option>';
+    sel.disabled=true; btn.disabled=true; btn.style.opacity='.5';
+    note.classList.remove('hidden');
+  }
+  renderEventFields();
+}
+function prefillEvent(id){ show('registrar'); document.getElementById('ev-animal').value=id; renderEventTipos(); }
+function renderEventFields(){
+  const t=document.getElementById('ev-tipo').value;
+  const box=document.getElementById('ev-extra');
+  let html='';
+  if(t==='servicio'){
+    html=`<label>Método</label><select id="ev-metodo">
+      <option value="iatf">IATF</option><option value="ia">IA convencional</option><option value="monta_natural">Monta natural</option></select>
+      <label>Protocolo IATF (si aplica)</label><select id="ev-protocolo">
+      <option value="">—</option><option value="ovsynch">Ovsynch</option><option value="ovsynch_cidr">Ovsynch + CIDR</option>
+      <option value="presynch_ovsynch">Presynch–Ovsynch</option><option value="cosynch">Cosynch</option></select>`;
+  }else if(t==='palpacion'){
+    html=`<label>Resultado</label><select id="ev-resultado">
+      <option value="positivo">Positivo (preñada)</option><option value="negativo">Negativo (vacía)</option><option value="dudoso">Dudoso</option></select>
+      <label>Días de gestación (opcional)</label><input id="ev-dias" type="number" min="0" placeholder="Ej. 90">`;
+  }else if(t==='parto'){
+    html=`<label>Sexo de la cría</label><select id="ev-sexo"><option value="hembra">Hembra</option><option value="macho">Macho</option></select>`;
+  }else if(t==='aborto'){
+    html=`<label>Causa (opcional)</label><input id="ev-causa" placeholder="Ej. infecciosa / desconocida">`;
+  }
+  box.innerHTML=html;
+}
+async function saveEvent(){
+  if(!STATE.fincaId){ toast('No se identificó la finca'); return; }
+  const animal_id=document.getElementById('ev-animal').value;
+  const tipo=document.getElementById('ev-tipo').value;
+  const fecha=document.getElementById('ev-fecha').value;
+  if(!animal_id||!fecha){ toast('Faltan animal o fecha'); return; }
+  if(!tipo){ toast('Este animal no registra eventos reproductivos'); return; }
+  const aSel = STATE.animales.find(x=>x.id==animal_id);
+  if(['servicio','palpacion','parto','aborto'].includes(tipo) && aSel && !esApta(aSel)){
+    toast('No apto: '+(aSel.codigo||'este animal')+' no está en edad/fase reproductiva'); return;
+  }
+  const row={ animal_id, finca_id:STATE.fincaId, tipo_evento:tipo, fecha,
+    observaciones:document.getElementById('ev-obs').value||null };
+  if(tipo==='servicio'){ row.metodo_servicio=val('ev-metodo'); row.protocolo_iatf=val('ev-protocolo')||null; }
+  if(tipo==='palpacion'){ row.resultado_diagnostico=val('ev-resultado'); const d=val('ev-dias'); row.dias_gestacion=d?+d:null; }
+  if(tipo==='parto'){ row.sexo_cria=val('ev-sexo'); }
+  if(tipo==='aborto'){ row.causa_aborto=val('ev-causa')||null; }
+  const { error } = await sb.from('eventos_reproductivos').insert(row);
+  if(error){
+    if((error.message||'').match(/relation|does not exist|not find/i)){
+      document.getElementById('ev-banner').classList.remove('hidden');
+      toast('Falta crear la tabla eventos_reproductivos');
+    }else toast('Error: '+error.message);
+    return;
+  }
+  // Recalcular el estado del animal según el evento (Fase 4 "lite").
+  const upd={};
+  const nuevoEstado = estadoDesdeEvento(tipo, row);
+  if(nuevoEstado && STATE.estados.some(e=>e.codigo===nuevoEstado)) upd.estado_actual_id=nuevoEstado;
+  if(tipo==='parto' && aSel && esHembra(aSel)){ upd.categoria_id='vaca'; upd.fase_manual=true; }
+  if(Object.keys(upd).length) await sb.from('animales').update(upd).eq('id',animal_id);
+  toast(nuevoEstado ? '✓ Evento guardado · estado → '+nuevoEstado : '✓ Evento guardado');
+  document.getElementById('ev-obs').value='';
+  await refreshData();
+}
+// Regla evento → estado resultante (ajustable). Solo se aplica si el código existe.
+function estadoDesdeEvento(tipo,row){
+  if(tipo==='servicio') return 'servida';
+  if(tipo==='palpacion') return row.resultado_diagnostico==='positivo' ? 'prenada'
+                              : row.resultado_diagnostico==='negativo' ? 'vacia' : null;
+  if(tipo==='parto')  return 'parida';
+  if(tipo==='aborto') return 'vacia';
+  if(tipo==='secado') return 'seca';
+  return null;
+}
+function val(id){ const el=document.getElementById(id); return el?el.value:''; }
+
+/* ================= Animales: alta / edición ================= */
+let editingId = null;   // null = creando; id = editando
+
+function mostrarCampoPeso(mostrar){
+  const box = document.getElementById('f-peso-box');
+  if(box) box.classList.toggle('hidden', !mostrar);
+  const c = document.getElementById('f-peso');
+  if(c && mostrar) c.value = '';
+  const lab = document.getElementById('f-peso-lab');
+  if(lab) lab.textContent = 'Peso actual en ' + (unidadPeso()==='arroba' ? 'arrobas (@)' : 'kilos (kg)') + ' (opcional)';
+}
+function openNewAnimal(){
+  mostrarCampoPeso(true);
+  editingId=null;
+  document.getElementById('form-title').textContent='Nuevo animal';
+  buildFormSelects(); clearForm(); renderFormEstados();
+  document.getElementById('btn-baja').classList.add('hidden');
+  show('form');
+}
+function openEditAnimal(id){
+  mostrarCampoPeso(false);
+  const a=STATE.animales.find(x=>x.id==id); if(!a) return;
+  editingId=id;
+  document.getElementById('form-title').textContent='Editar animal';
+  buildFormSelects(); fillForm(a); renderFormEstados();
+  document.getElementById('btn-baja').classList.remove('hidden');
+  show('form');
+}
+async function bajaAnimal(){
+  if(!editingId) return;
+  const a=STATE.animales.find(x=>x.id==editingId);
+  if(!confirm('¿Dar de baja a '+((a&&a.codigo)||'este animal')+'? Dejará de aparecer en la lista (venta o muerte).')) return;
+  const { error } = await sb.from('animales').update({fecha_baja:new Date().toISOString().slice(0,10)}).eq('id',editingId);
+  if(error){ toast('Error: '+error.message); return; }
+  toast('✓ Animal dado de baja'); await refreshData(); show('animales');
+}
+function opt(v,l,sel){ return `<option value="${esc(v)}"${sel?' selected':''}>${esc(l)}</option>`; }
+function buildFormSelects(){
+  document.getElementById('f-cat').innerHTML   = STATE.categorias.map(c=>opt(c.codigo,c.nombre||c.codigo)).join('');
+  document.getElementById('f-lote').innerHTML  = '<option value="">— Sin lote —</option>'+STATE.lotes.map(l=>opt(l.id,l.nombre)).join('');
+  const hembras=STATE.animales.filter(a=>(a.sexo||'').toLowerCase().startsWith('h'));
+  const machos =STATE.animales.filter(a=>(a.sexo||'').toLowerCase().startsWith('m'));
+  document.getElementById('f-madre').innerHTML='<option value="">— Desconocida —</option>'+hembras.map(a=>opt(a.id,a.codigo||a.id)).join('');
+  document.getElementById('f-padre').innerHTML='<option value="">— Desconocido —</option>'+machos.map(a=>opt(a.id,a.codigo||a.id)).join('');
+}
+function clearForm(){
+  ['f-codigo','f-idelec','f-raza','f-fnac'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-sexo').value='hembra';
+  renderFormCategorias(); renderFormEstados();
+  ['f-lote','f-madre','f-padre'].forEach(id=>document.getElementById(id).value='');
+}
+function fillForm(a){
+  document.getElementById('f-codigo').value=a.codigo||'';
+  document.getElementById('f-idelec').value=a.id_electronico||'';
+  document.getElementById('f-raza').value=a.raza||'';
+  document.getElementById('f-sexo').value=(a.sexo||'hembra');
+  document.getElementById('f-fnac').value=a.fecha_nacimiento||'';
+  renderFormCategorias();
+  document.getElementById('f-cat').value=a.categoria_id||'';
+  renderFormEstados();
+  document.getElementById('f-estado').value=a.estado_actual_id||'';
+  document.getElementById('f-lote').value=a.lote_id||'';
+  document.getElementById('f-madre').value=a.madre_id||'';
+  document.getElementById('f-padre').value=a.padre_id||'';
+}
+async function saveAnimal(){
+  if(!STATE.fincaId){ toast('No se identificó la finca'); return; }
+  const codigo=val('f-codigo').trim();
+  if(!codigo){ toast('El código es obligatorio'); return; }
+  const row={
+    codigo,
+    id_electronico: val('f-idelec')||null,
+    raza: val('f-raza')||null,
+    sexo: val('f-sexo'),
+    fecha_nacimiento: val('f-fnac')||null,
+    categoria_id: val('f-cat')||null,
+    estado_actual_id: val('f-estado')||null,
+    lote_id: val('f-lote')||null,
+    madre_id: val('f-madre')||null,
+    padre_id: val('f-padre')||null,
+    finca_id: STATE.fincaId
+  };
+  if(esEstadoRepro(row.estado_actual_id) && !aptFromForm()){
+    toast('Ese estado es reproductivo y el animal no es apto por edad/fase'); return;
+  }
+  const espF = faseEsperadaForm();
+  row.fase_manual = (espF==null) ? true : (val('f-cat')!==espF);
+  const res = editingId
+    ? await sb.from('animales').update(row).eq('id',editingId)
+    : await sb.from('animales').insert(row);
+  if(res.error){ toast('Error: '+res.error.message); return; }
+  toast(editingId?'✓ Animal actualizado':'✓ Animal agregado');
+  // Peso inicial: si lo escribieron en el formulario, queda como primer pesaje
+  try{
+    const pIni = val('f-peso');
+    if(pIni && !editingId){
+      const kgIni = aKilos(pIni);
+      if(kgIni){
+        const nuevo = (STATE.animales||[]).slice().sort(function(x,y){
+          return new Date(y.created_at||0) - new Date(x.created_at||0);
+        })[0];
+        const codigo = (val('f-codigo')||'').trim();
+        const { data: recien } = await sb.from('animales').select('id')
+          .eq('finca_id', STATE.fincaId).eq('codigo', codigo).limit(1);
+        const destino = (recien && recien[0]) ? recien[0].id : (nuevo ? nuevo.id : null);
+        if(destino){
+          await sb.from('pesajes').insert({ animal_id: destino, finca_id: STATE.fincaId,
+                                            fecha: hoyISO(), peso_kg: kgIni });
+          toast('✓ Animal creado con ' + pesoTxt(kgIni));
+        }
+      }
+    }
+    const campoPeso = document.getElementById('f-peso');
+    if(campoPeso) campoPeso.value = '';
+  }catch(e){ console.error(e); }
+  await refreshData();
+  show('animales');
+}
+// Recarga animales desde la BD y repinta todo lo que depende de ellos.
+async function refreshData(){ await loadFincaData(); }
+// Edad (meses) calculada desde los campos del formulario.
+function edadMesesForm(){
+  const fnac=val('f-fnac'); if(!fnac) return null;
+  const b=new Date(fnac); if(isNaN(b)) return null;
+  const n=new Date();
+  let m=(n.getFullYear()-b.getFullYear())*12+(n.getMonth()-b.getMonth());
+  if(n.getDate()<b.getDate()) m--;
+  return m<0?0:m;
+}
+function faseEsperadaForm(){
+  const m=edadMesesForm(); if(m==null) return null;
+  const fem=val('f-sexo')==='hembra';
+  if(fem) return m<FASE_CFG.hembra_ternera_max?'ternera':'novilla';
+  return m<FASE_CFG.macho_ternero_max?'ternero':'novillo';
+}
+function aptFromForm(){
+  if(val('f-sexo')!=='hembra') return false;
+  const cat=val('f-cat');
+  if(cat==='vaca') return true;
+  if(cat==='novilla'){ const m=edadMesesForm(); return m==null || m>=FASE_CFG.edad_entorar; }
+  return false;
+}
+// Categorías/fases válidas para el sexo (macho: ternero/novillo/toro; hembra: ternera/novilla/vaca/vaca_desc).
+function catsForSex(fem){
+  return STATE.categorias.filter(c=>{
+    const code=(c.codigo||'').toLowerCase();
+    const isFem=/ternera|novilla|vaca/.test(code);
+    const isMac=/ternero|novillo|toro/.test(code);
+    return fem ? (isFem || (!isFem && !isMac)) : (isMac || (!isFem && !isMac));
+  });
+}
+function renderFormCategorias(){
+  const fem=val('f-sexo')==='hembra'; const cur=val('f-cat');
+  const sel=document.getElementById('f-cat');
+  sel.innerHTML=catsForSex(fem).map(c=>opt(c.codigo,c.nombre||c.codigo, c.codigo===cur)).join('');
+  if(![...sel.options].some(o=>o.value===cur) && sel.options.length) sel.selectedIndex=0;
+}
+// Rellena el select de estado ocultando los reproductivos si el animal no es apto.
+function renderFormEstados(){
+  const cur=val('f-estado'); const fem=val('f-sexo')==='hembra'; const apt=aptFromForm();
+  const list=STATE.estados.filter(e=>{
+    const c=e.codigo||'';
+    if(!fem) return !HEMBRA_RX.test(c);   // macho: sin estados de hembra
+    return apt || !esEstadoRepro(c);       // hembra no apta: sin reproductivos
+  });
+  document.getElementById('f-estado').innerHTML=list.map(e=>opt(e.codigo,e.nombre||e.codigo, e.codigo===cur)).join('');
+}
+// Al crear, sugiere la fase según la edad (no pisa si estás editando).
+function suggestFase(){
+  if(editingId) return;
+  const esp=faseEsperadaForm(); if(!esp) return;
+  const sel=document.getElementById('f-cat');
+  if([...sel.options].some(o=>o.value===esp)) sel.value=esp;
+}
+function onFormAgeChange(){ renderFormCategorias(); suggestFase(); renderFormEstados(); }
+
+/* ================= Navigation ================= */
+// Oculta la pantalla de carga (con un mínimo de tiempo para ver la vaca mugir).
+let bootHidden=false; const bootStart=Date.now();
+function hideBoot(){
+  if(bootHidden) return; bootHidden=true;
+  const b=document.getElementById('boot-loader');
+  const wait=Math.max(0, 2400-(Date.now()-bootStart));
+  setTimeout(()=>{ if(b) b.classList.add('hidden'); }, wait);
+}
+function openDrawer(){ document.getElementById('bottom-nav').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+function closeDrawer(){ document.getElementById('bottom-nav').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+function show(screen){
+  hideBoot();
+  closeDrawer();
+  document.getElementById('hamb').style.display='none';
+  // Admin sin finca seleccionada: sus pantallas de finca redirigen a la consola.
+  if(STATE.isAdmin && !STATE.fincaId && ['inicio','animales','registrar','agenda','finca'].includes(screen)) screen='admin';
+  if(screen!=='ficha'){ fichaStack=[]; STATE.currentFicha=null; }
+  ['config','login','invitacion','clave','registro','revision','recuperar'].forEach(s=>document.getElementById('screen-'+s).classList.add('hidden'));
+  document.getElementById('app-main').classList.add('hidden');
+  if(screen==='config'){ document.getElementById('screen-config').classList.remove('hidden');
+    if(CFG){document.getElementById('cfg-url').value=CFG.url;document.getElementById('cfg-key').value=CFG.key;} return; }
+  if(screen==='login'){ document.getElementById('screen-login').classList.remove('hidden'); return; }
+  if(screen==='invitacion'){ document.getElementById('screen-invitacion').classList.remove('hidden'); return; }
+  if(screen==='clave'){ document.getElementById('screen-clave').classList.remove('hidden'); return; }
+  if(screen==='registro'){ document.getElementById('screen-registro').classList.remove('hidden'); return; }
+  if(screen==='revision'){ document.getElementById('screen-revision').classList.remove('hidden'); return; }
+  if(screen==='recuperar'){ document.getElementById('screen-recuperar').classList.remove('hidden'); return; }
+  document.getElementById('app-main').classList.remove('hidden');
+  document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));
+  document.getElementById('view-'+screen).classList.remove('hidden');
+  document.querySelectorAll('#bottom-nav button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.nav===screen || (['ficha','form'].includes(screen)&&b.dataset.nav==='animales'));
+  });
+  if(['inicio','animales','registrar','agenda','finca','ajustes','admin'].includes(screen)) document.getElementById('hamb').style.display='';
+  if(screen==='finca') renderFinca();
+  if(screen==='agenda') renderAgenda();
+  updateAdminUI();
+  window.scrollTo(0,0);
+}
+
+/* ================= Utils ================= */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function cap(s){ s=(s==null?'':String(s)); return s ? s.charAt(0).toUpperCase()+s.slice(1) : '—'; }
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* Deslizar desde el borde izquierdo = volver (en la ficha) */
+(function(){
+  let sx=0, sy=0;
+  document.addEventListener('touchstart',e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; },{passive:true});
+  document.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    const fv=document.getElementById('view-ficha');
+    if(sx<45 && dx>70 && Math.abs(dy)<55 && fv && !fv.classList.contains('hidden')) fichaBack();
+  },{passive:true});
+})();
+
+/* ================= Service worker ================= */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+
+function vantikConfirm(titulo, texto, okTexto, peligro){
+  return new Promise(function(resolve){
+    const box = document.getElementById('modal-arbol');
+    if(!box){ resolve(window.confirm(texto)); return; }
+    box.innerHTML =
+      '<div class="modal-card" style="max-width:420px" onclick="event.stopPropagation()">' +
+        '<div class="modal-head"><h2>' + esc(titulo) + '</h2></div>' +
+        '<p style="margin:0 0 18px;color:var(--muted);font-size:15px;line-height:1.5">' + esc(texto) + '</p>' +
+        '<button class="btn' + (peligro ? ' danger' : '') + '" id="vk-ok">' + esc(okTexto || 'Si, continuar') + '</button>' +
+        '<button class="btn line" style="margin-top:10px" id="vk-no">Cancelar</button>' +
+      '</div>';
+    const cerrar = function(r){ box.classList.add('hidden'); box.innerHTML=''; box.onclick=null; resolve(r); };
+    box.onclick = function(){ cerrar(false); };
+    box.classList.remove('hidden');
+    document.getElementById('vk-ok').onclick = function(){ cerrar(true); };
+    document.getElementById('vk-no').onclick = function(){ cerrar(false); };
+  });
+}
+let formSucio = false;
+(function(){
+  document.addEventListener('input', function(e){
+    if(e.target.closest && e.target.closest('#view-form, #bloque-repro, #bloque-sanidad')) formSucio = true;
+  }, true);
+  window.addEventListener('beforeunload', function(e){ if(formSucio){ e.preventDefault(); e.returnValue=''; } });
+  const origShow = show;
+  let ultima = null;
+  window.show = function(screen){
+    if(['form','registrar'].indexOf(ultima) >= 0 && screen !== ultima && formSucio){
+      vantikConfirm('Tienes cambios sin guardar',
+        'Si sales ahora se pierde lo que escribiste y no quedara registrado.',
+        'Salir sin guardar', true).then(function(ok){
+          if(ok){ formSucio = false; ultima = screen; origShow(screen); } });
+      return;
+    }
+    if(['form','registrar'].indexOf(screen) < 0) formSucio = false;
+    ultima = screen;
+    origShow(screen);
+  };
+})();
+(function(){
+  const orig = fillEventAnimalSelect;
+  window.fillEventAnimalSelect = function(){
+    const sel = document.getElementById('ev-animal');
+    const previo = sel ? sel.value : '';
+    orig.apply(this, arguments);
+    if(!sel) return;
+    const opciones = [...sel.options].map(function(o){ return o.value; });
+    if(previo && opciones.indexOf(previo) >= 0){ sel.value = previo; }
+    else {
+      const apta = (STATE.animales||[]).find(function(a){ return esApta(a) && opciones.indexOf(a.id) >= 0; });
+      if(apta) sel.value = apta.id;
+    }
+    if(typeof renderEventTipos === 'function') renderEventTipos();
+  };
+})();
+
+/* Al pulsar Guardar ya no debe avisar de cambios sin guardar */
+(function(){
+  ['saveAnimal','saveEvent','guardarSanidad','guardarPeso','bajaAnimal','crearCuenta','registrarConInvitacion'].forEach(function(n){
+    const f = window[n];
+    if(typeof f === 'function'){
+      window[n] = function(){ formSucio = false; return f.apply(this, arguments); };
+    }
+  });
+})();
+
+/* ===================================================================
+   Vantik v2.5 - Carga rapida de animales
+   Se fija una vez lo que comparten (raza, lote, categoria, estado) y
+   despues solo se escribe el codigo. Al terminar muestra un resumen.
+   Trae su propio dialogo: el de la app se dibuja dentro de .app y
+   quedaria tapado por este panel.
+   =================================================================== */
+(function(){
+  const HOY = () => new Date().toISOString().slice(0,10);
+  const SEXO_DE = {ternero:'macho', novillo:'macho', toro:'macho',
+                   ternera:'hembra', novilla:'hembra', vaca:'hembra', vaca_desc:'hembra'};
+  let agregados = [];
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function css(){
+    if(document.getElementById('cr-css')) return;
+    const s = document.createElement('style'); s.id='cr-css';
+    s.textContent = `
+    #cr-overlay{position:fixed;inset:0;z-index:9000;background:#faf7f2;overflow-y:auto;display:none}
+    #cr-overlay.on{display:block}
+    .cr-wrap{max-width:640px;margin:0 auto;padding:18px 16px 140px}
+    .cr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .cr-head h1{font-size:23px;margin:0;letter-spacing:-.01em}
+    .cr-x{background:#fff;border:1px solid #e8e1d6;border-radius:50%;width:34px;height:34px;
+      font-size:19px;line-height:1;cursor:pointer;color:#7a6f63;flex-shrink:0;display:grid;place-items:center}
+    .cr-x:hover{background:#f2ece3}
+    .cr-sub{color:#8a7f72;font-size:13.5px;margin:5px 0 16px;line-height:1.45}
+    .cr-box{background:#fff;border:1px solid #e8e1d6;border-radius:16px;padding:16px;margin-bottom:14px}
+    .cr-box h3{margin:0 0 12px;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:#9a8f81;font-weight:800}
+    .cr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+    @media(max-width:520px){.cr-grid{grid-template-columns:1fr}}
+    .cr-grid .full{grid-column:1/-1}
+    #cr-overlay label{display:block;font-size:12.5px;color:#6b6154;font-weight:600;margin:0 0 5px}
+
+    /* --- campo del codigo, con pinta de chapeta --- */
+    .cr-tagfield{background:linear-gradient(180deg,#5cdc7c 0%,#37c05c 55%,#2fa851 100%);
+      border-radius:18px 18px 26px 26px;padding:14px 14px 18px;margin-bottom:12px;
+      box-shadow:0 6px 16px rgba(23,58,32,.20),inset 0 3px 7px rgba(255,255,255,.36)}
+    .cr-tagfield .pin{width:40px;height:13px;border-radius:9px 9px 3px 3px;background:#1c7a37;
+      margin:-4px auto 10px;opacity:.55}
+    .cr-tagfield input{width:100%;border:0;background:rgba(255,255,255,.92);border-radius:12px;
+      padding:12px 10px;font-size:30px;font-weight:900;font-style:italic;letter-spacing:.06em;
+      text-align:center;text-transform:uppercase;color:#123a1e;box-shadow:inset 0 1px 3px rgba(0,0,0,.10)}
+    .cr-tagfield input:focus{outline:2px solid #123a1e;outline-offset:2px}
+    .cr-tagfield input::placeholder{color:#9dbfa8;font-style:normal;font-weight:700}
+
+    .cr-fila2{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+    @media(max-width:430px){.cr-fila2{grid-template-columns:1fr}}
+    #cr-overlay .cr-add{width:auto;min-width:140px;margin:0;font-size:16px;padding:13px 20px;border-radius:12px}
+    #cr-overlay .cr-add[disabled]{opacity:.55}
+    #cr-peso{margin:0}
+
+    .cr-err{color:#b3261e;font-size:13px;min-height:17px;margin:9px 0 0;font-weight:600}
+    .cr-hint{color:#9a8f81;font-size:12.5px;margin:9px 0 0;line-height:1.45}
+
+    /* --- lista de agregados --- */
+    .cr-lista{display:flex;flex-direction:column;gap:7px}
+    .cr-item{display:flex;align-items:center;gap:11px;border:1px solid #eee7dc;border-radius:12px;padding:8px 10px;
+      animation:crIn .22s ease}
+    @keyframes crIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+    .cr-chip{background:linear-gradient(180deg,#5cdc7c,#2fa851);color:#123a1e;font-weight:900;font-style:italic;
+      border-radius:8px 8px 11px 11px;padding:5px 10px;font-size:14px;letter-spacing:.02em;white-space:nowrap}
+    .cr-det{flex:1;font-size:12.5px;color:#6b6154;line-height:1.35}
+    .cr-del{background:none;border:0;color:#b3261e;font-size:12.5px;cursor:pointer;padding:6px 4px;font-weight:600}
+    .cr-vacio{color:#a89e92;font-size:13px;text-align:center;padding:18px 0}
+    .cr-cont{color:#2f7a3e}
+
+    /* --- barra fija de abajo --- */
+    .cr-barra{position:fixed;left:0;right:0;bottom:0;background:rgba(250,247,242,.95);
+      backdrop-filter:blur(6px);border-top:1px solid #e8e1d6;padding:12px 16px;z-index:9001}
+    .cr-barra .in{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:12px}
+    .cr-barra .cnt{flex:1;font-size:13.5px;color:#6b6154}
+    .cr-barra .cnt b{color:#2f7a3e;font-size:16px}
+    #cr-overlay .cr-fin{width:auto;margin:0;padding:12px 26px;border-radius:12px}
+
+    /* --- dialogo propio (el de la app queda debajo de este panel) --- */
+    .cr-dlg{position:fixed;inset:0;z-index:9500;background:rgba(30,24,16,.45);
+      display:grid;place-items:center;padding:20px}
+    .cr-dlg .card{background:#fff;border-radius:18px;padding:22px;max-width:400px;width:100%;
+      box-shadow:0 18px 44px rgba(0,0,0,.24)}
+    .cr-dlg h4{margin:0 0 8px;font-size:18px}
+    .cr-dlg p{margin:0 0 18px;color:#6b6154;font-size:14px;line-height:1.5}
+    .cr-dlg .fila{display:flex;gap:10px;justify-content:flex-end}
+    #cr-overlay .cr-dlg button, .cr-dlg button{width:auto;margin:0;padding:11px 18px;border-radius:11px;
+      font-size:14.5px;font-weight:700;cursor:pointer;border:1px solid #e0d8cc;background:#fff;color:#5c5347}
+    .cr-dlg button.si{background:#2f7a3e;color:#fff;border-color:#2f7a3e}
+    .cr-dlg button.peligro{background:#b3261e;color:#fff;border-color:#b3261e}
+
+    /* --- resumen final --- */
+    .cr-fin-icon{width:60px;height:60px;border-radius:50%;background:#e6f4ea;color:#2f7a3e;
+      display:grid;place-items:center;font-size:31px;margin:6px auto 12px}
+    .cr-res-tit{text-align:center;font-size:21px;margin:0 0 4px}
+    .cr-res-sub{text-align:center;color:#8a7f72;font-size:13.5px;margin:0 0 18px}
+    .cr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-bottom:14px}
+    .cr-stat{background:#fff;border:1px solid #e8e1d6;border-radius:13px;padding:12px}
+    .cr-stat .v{font-size:22px;font-weight:800;color:#2f2a22;line-height:1.1}
+    .cr-stat .k{font-size:11.5px;color:#9a8f81;margin-top:3px}
+    .cr-desglose{display:flex;flex-direction:column;gap:7px}
+    .cr-dl{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;padding:7px 0;border-bottom:1px solid #f2ece3}
+    .cr-dl:last-child{border-bottom:0}
+    .cr-dl span:first-child{color:#6b6154}
+    .cr-dl span:last-child{font-weight:700;color:#2f2a22}
+    .cr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+    `;
+    document.head.appendChild(s);
+  }
+
+  /* dialogo propio, por encima del panel */
+  function preguntar(titulo, texto, textoSi, peligro){
+    return new Promise(res => {
+      const d = document.createElement('div'); d.className = 'cr-dlg';
+      d.innerHTML = '<div class="card"><h4>'+esc(titulo)+'</h4><p>'+esc(texto)+'</p>'+
+        '<div class="fila"><button data-no>Cancelar</button>'+
+        '<button data-si class="'+(peligro?'peligro':'si')+'">'+esc(textoSi)+'</button></div></div>';
+      d.querySelector('[data-no]').onclick = () => { d.remove(); res(false); };
+      d.querySelector('[data-si]').onclick = () => { d.remove(); res(true); };
+      d.onclick = e => { if(e.target === d){ d.remove(); res(false); } };
+      document.body.appendChild(d);
+      d.querySelector('[data-si]').focus();
+    });
+  }
+
+  function opts(arr, sel){
+    return arr.map(o => '<option value="'+esc(o.v)+'"'+(o.v===sel?' selected':'')+'>'+esc(o.t)+'</option>').join('');
+  }
+
+  function pintarEstados(){
+    const cat  = document.getElementById('cr-cat').value;
+    const sexo = SEXO_DE[cat] || 'hembra';
+    const validos = (sexo === 'hembra')
+      ? ['vacia','servida','prenada','parida','lactando','seca','activo','engorde']
+      : ['activo','engorde','sano'];
+    const lista = (STATE.estados||[]).filter(e => validos.indexOf(e.codigo) >= 0);
+    const sel = document.getElementById('cr-estado');
+    const previo = sel.value;
+    sel.innerHTML = opts(lista.map(e=>({v:e.codigo, t:e.nombre})),
+                         validos.indexOf(previo)>=0 ? previo : (sexo==='hembra'?'vacia':'activo'));
+    document.getElementById('cr-sexo-hint').textContent =
+      'Se van a guardar como ' + (sexo === 'hembra' ? 'hembras' : 'machos') + ', segun la categoria.';
+  }
+
+  function siguienteCodigo(cod){
+    const m = String(cod||'').match(/^(.*?)(\d+)(\D*)$/);
+    if(!m) return '';
+    const num = String(Number(m[2]) + 1).padStart(m[2].length, '0');
+    return (m[1] + num + m[3]).toUpperCase();
+  }
+
+  function pintarLista(){
+    const c = document.getElementById('cr-lista');
+    document.getElementById('cr-cont').textContent = agregados.length;
+    document.getElementById('cr-cont2').textContent = agregados.length;
+    document.getElementById('cr-plural').textContent = agregados.length === 1 ? 'animal' : 'animales';
+    if(!agregados.length){
+      c.innerHTML = '<p class="cr-vacio">Todavia no has agregado ninguno.</p>';
+      return;
+    }
+    c.innerHTML = agregados.slice().reverse().map(a =>
+      '<div class="cr-item"><span class="cr-chip">'+esc(a.codigo)+'</span>'+
+      '<span class="cr-det">'+esc(a.detalle)+'</span>'+
+      '<button class="cr-del" onclick="crDeshacer(\''+a.id+'\')">Quitar</button></div>').join('');
+  }
+
+  function err(msg){ document.getElementById('cr-err').textContent = msg || ''; }
+
+  window.crDeshacer = async function(id){
+    const a = agregados.find(x => x.id === id);
+    const ok = await preguntar('Quitar ' + (a?a.codigo:'este animal'),
+      'Se va a borrar de la finca. Esto no se puede deshacer.', 'Si, quitarlo', true);
+    if(!ok) return;
+    await sb.from('pesajes').delete().eq('animal_id', id);
+    const r = await sb.from('animales').delete().eq('id', id);
+    if(r.error){ err('No se pudo quitar: ' + r.error.message); return; }
+    agregados = agregados.filter(x => x.id !== id);
+    STATE.animales = (STATE.animales||[]).filter(x => x.id !== id);
+    pintarLista();
+  };
+
+  window.crAgregar = async function(){
+    err('');
+    const inp = document.getElementById('cr-cod');
+    const codigo = inp.value.trim().toUpperCase();
+    if(!codigo){ err('Escribe el codigo del animal.'); inp.focus(); return; }
+
+    const repe = (STATE.animales||[]).some(a => (a.codigo||'').toUpperCase() === codigo);
+    if(repe){ err('Ya existe un animal con el codigo ' + codigo + '.'); inp.select(); return; }
+
+    const cat  = document.getElementById('cr-cat').value;
+    const raza = document.getElementById('cr-raza').value.trim();
+    const lote = document.getElementById('cr-lote').value || null;
+    const est  = document.getElementById('cr-estado').value;
+    const fnac = document.getElementById('cr-fnac').value || null;
+    const peso = parseFloat(document.getElementById('cr-peso').value);
+
+    const btn = document.getElementById('cr-btn');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+
+    const r = await sb.from('animales').insert({
+      codigo: codigo,
+      raza: raza || null,
+      sexo: SEXO_DE[cat] || 'hembra',
+      categoria_id: cat,
+      estado_actual_id: est,
+      lote_id: lote,
+      fecha_nacimiento: fnac,
+      finca_id: STATE.fincaId
+    }).select().single();
+
+    btn.disabled = false; btn.textContent = '+ Agregar';
+    if(r.error){ err('No se pudo guardar: ' + r.error.message); return; }
+
+    const nuevo = r.data;
+    STATE.animales.push(nuevo);
+
+    const catNom = (STATE.categorias.find(c=>c.codigo===cat)||{}).nombre || cat;
+    const loteNom = lote ? ((STATE.lotes.find(l=>l.id===lote)||{}).nombre || '') : '';
+    let detalle = catNom;
+    if(raza)    detalle += ' · ' + raza;
+    if(loteNom) detalle += ' · ' + loteNom;
+
+    let pesoOk = null;
+    if(peso > 0){
+      const p = await sb.from('pesajes').insert({
+        animal_id: nuevo.id, finca_id: STATE.fincaId, fecha: HOY(), peso_kg: peso});
+      if(!p.error){
+        pesoOk = peso;
+        detalle += ' · ' + peso + ' kg';
+        (STATE.pesajes||[]).push({animal_id:nuevo.id, fecha:HOY(), peso_kg:peso});
+      } else {
+        err('El animal quedo guardado, pero el peso no: ' + p.error.message);
+      }
+    }
+
+    agregados.push({id:nuevo.id, codigo:codigo, detalle:detalle,
+                    cat:catNom, raza:raza||'Sin raza', lote:loteNom||'Sin lote', peso:pesoOk});
+    pintarLista();
+
+    inp.value = siguienteCodigo(codigo);
+    inp.focus(); inp.select();
+    document.getElementById('cr-peso').value = '';
+  };
+
+  function resumenHTML(){
+    const n = agregados.length;
+    const pesos = agregados.map(a=>a.peso).filter(p=>p>0);
+    const prom = pesos.length ? Math.round(pesos.reduce((s,p)=>s+p,0)/pesos.length) : null;
+
+    const cuenta = (campo) => {
+      const m = {};
+      agregados.forEach(a => { m[a[campo]] = (m[a[campo]]||0)+1; });
+      return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+    };
+    const bloque = (titulo, pares) =>
+      '<div class="cr-box"><h3>'+titulo+'</h3><div class="cr-desglose">' +
+      pares.map(([k,v])=>'<div class="cr-dl"><span>'+esc(k)+'</span><span>'+v+'</span></div>').join('') +
+      '</div></div>';
+
+    return '<div class="cr-wrap">'+
+      '<div class="cr-fin-icon">&#10003;</div>'+
+      '<h1 class="cr-res-tit">Listo, agregaste '+n+' '+(n===1?'animal':'animales')+'</h1>'+
+      '<p class="cr-res-sub">Ya quedaron guardados en tu finca.</p>'+
+
+      '<div class="cr-stats">'+
+        '<div class="cr-stat"><div class="v">'+n+'</div><div class="k">'+(n===1?'Animal nuevo':'Animales nuevos')+'</div></div>'+
+        '<div class="cr-stat"><div class="v">'+pesos.length+'</div><div class="k">Con peso registrado</div></div>'+
+        (prom ? '<div class="cr-stat"><div class="v">'+prom+' kg</div><div class="k">Peso promedio</div></div>' : '')+
+      '</div>'+
+
+      bloque('Por categoria', cuenta('cat'))+
+      bloque('Por raza', cuenta('raza'))+
+      bloque('Por lote', cuenta('lote'))+
+
+      '<div class="cr-box"><h3>Codigos agregados</h3><div class="cr-chips">'+
+        agregados.map(a=>'<span class="cr-chip">'+esc(a.codigo)+'</span>').join('')+
+      '</div></div>'+
+
+      '<button class="btn" onclick="crFinal()">Ver mis animales</button>'+
+    '</div>';
+  }
+
+  window.crFinal = function(){
+    document.getElementById('cr-overlay').classList.remove('on');
+    document.body.style.overflow = '';
+    location.reload();
+  };
+
+  window.crCerrar = async function(){
+    const ov = document.getElementById('cr-overlay');
+    if(!agregados.length){
+      ov.classList.remove('on');
+      document.body.style.overflow = '';
+      return;
+    }
+    ov.innerHTML = resumenHTML();
+    ov.scrollTop = 0;
+  };
+
+  window.crSalir = async function(){
+    if(agregados.length){ return crCerrar(); }
+    const ok = await preguntar('Salir de carga rapida',
+      'No has agregado ningun animal todavia.', 'Salir', false);
+    if(!ok) return;
+    document.getElementById('cr-overlay').classList.remove('on');
+    document.body.style.overflow = '';
+  };
+
+  function panelHTML(){
+    return '<div class="cr-wrap">'+
+      '<div class="cr-head"><h1>Carga rapida</h1>'+
+        '<button class="cr-x" onclick="crSalir()" title="Cerrar">&times;</button></div>'+
+      '<p class="cr-sub">Ajusta una vez lo que comparten y despues solo escribe el codigo de cada animal.</p>'+
+
+      '<div class="cr-box"><h3>Igual para todos</h3>'+
+        '<div class="cr-grid">'+
+          '<div><label>Categoria</label><select id="cr-cat" onchange="crEstados()"></select></div>'+
+          '<div><label>Estado</label><select id="cr-estado"></select></div>'+
+          '<div><label>Raza</label><input id="cr-raza" placeholder="Ej. Brahman"></div>'+
+          '<div><label>Lote</label><select id="cr-lote"></select></div>'+
+          '<div class="full"><label>Fecha de nacimiento (opcional)</label><input id="cr-fnac" type="date"></div>'+
+        '</div>'+
+        '<p class="cr-hint" id="cr-sexo-hint"></p>'+
+      '</div>'+
+
+      '<div class="cr-box"><h3>Animal por animal</h3>'+
+        '<div class="cr-tagfield"><div class="pin"></div>'+
+          '<input id="cr-cod" placeholder="V007" autocapitalize="characters" autocomplete="off" '+
+                 'inputmode="text" spellcheck="false">'+
+        '</div>'+
+        '<div class="cr-fila2">'+
+          '<div><label>Peso de hoy (opcional)</label>'+
+            '<input id="cr-peso" type="number" inputmode="decimal" step="0.1" min="1" placeholder="Ej: 325"></div>'+
+          '<button class="btn cr-add" id="cr-btn" onclick="crAgregar()">+ Agregar</button>'+
+        '</div>'+
+        '<p class="cr-err" id="cr-err"></p>'+
+        '<p class="cr-hint">Con Enter tambien guarda. Despues de agregar, el codigo sube solo al siguiente numero.</p>'+
+      '</div>'+
+
+      '<div class="cr-box"><h3>Agregados en esta tanda (<span class="cr-cont" id="cr-cont">0</span>)</h3>'+
+        '<div class="cr-lista" id="cr-lista"></div>'+
+      '</div>'+
+
+      '<div class="cr-barra"><div class="in">'+
+        '<div class="cnt"><b id="cr-cont2">0</b> <span id="cr-plural">animales</span> en esta tanda</div>'+
+        '<button class="btn cr-fin" onclick="crCerrar()">Terminar</button>'+
+      '</div></div>'+
+    '</div>';
+  }
+
+  window.abrirCargaRapida = function(){
+    css();
+    let ov = document.getElementById('cr-overlay');
+    if(!ov){ ov = document.createElement('div'); ov.id = 'cr-overlay'; document.body.appendChild(ov); }
+    ov.innerHTML = panelHTML();
+
+    ['cr-cod','cr-peso'].forEach(function(id){
+      ov.querySelector('#'+id).addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); crAgregar(); }
+      });
+    });
+
+    document.getElementById('cr-cat').innerHTML =
+      opts((STATE.categorias||[]).map(c=>({v:c.codigo, t:c.nombre})), 'novilla');
+    document.getElementById('cr-lote').innerHTML =
+      '<option value="">Sin lote</option>' + opts((STATE.lotes||[]).map(l=>({v:l.id, t:l.nombre})), '');
+    pintarEstados();
+
+    const ultimo = (STATE.animales||[]).map(a=>a.codigo).filter(Boolean).sort().pop();
+    document.getElementById('cr-cod').value = siguienteCodigo(ultimo) || '';
+
+    agregados = [];
+    pintarLista(); err('');
+    ov.classList.add('on');
+    ov.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+    setTimeout(function(){ const i=document.getElementById('cr-cod'); if(i){ i.focus(); i.select(); } }, 60);
+  };
+
+  window.crEstados = pintarEstados;
+
+  function ponerBoton(){
+    const tb = document.querySelector('#view-animales .topbar');
+    if(!tb || document.getElementById('cr-abrir')) return;
+    const b = document.createElement('button');
+    b.id = 'cr-abrir'; b.className = 'btn ghost';
+    b.style.cssText = 'margin-left:8px';
+    b.textContent = 'Carga rapida';
+    b.onclick = abrirCargaRapida;
+    const nuevo = [...tb.querySelectorAll('button')].find(x=>/Nuevo/.test(x.textContent));
+    if(nuevo && nuevo.parentNode) nuevo.parentNode.insertBefore(b, nuevo.nextSibling);
+    else tb.appendChild(b);
+  }
+  document.addEventListener('DOMContentLoaded', ponerBoton);
+  setTimeout(ponerBoton, 1200);
+  setTimeout(ponerBoton, 3000);
+})();
+boot();
+
+</script>
+<script src="diagnostico.js" defer></script>
+<script>
+
+</script>
+
+<script>
+/* Limite de longitud en todos los campos, incluidos los que se crean despues */
+(function(){
+  var TOPE = {textarea:1000, text:120, email:120, tel:25, number:12, date:12, password:72, search:60};
+  function poner(e){
+    if(!e.tagName) return;
+    var t = e.tagName.toLowerCase();
+    if(t !== 'textarea' && t !== 'input') return;
+    if(e.getAttribute('maxlength')) return;
+    var tipo = t === 'textarea' ? 'textarea' : (e.getAttribute('type')||'text').toLowerCase();
+    if(tipo === 'checkbox' || tipo === 'radio' || tipo === 'file' || tipo === 'hidden') return;
+    var max = TOPE[tipo] || 120;
+    if(tipo === 'number' || tipo === 'date') return;
+    e.setAttribute('maxlength', max);
+  }
+  function barrer(raiz){ (raiz||document).querySelectorAll('input,textarea').forEach(poner); }
+  barrer();
+  new MutationObserver(function(ms){
+    ms.forEach(function(m){ m.addedNodes.forEach(function(n){
+      if(n.nodeType !== 1) return;
+      poner(n); if(n.querySelectorAll) barrer(n);
+    }); });
+  }).observe(document.documentElement, {childList:true, subtree:true});
+})();
+</script>
+</body>
+</html>
